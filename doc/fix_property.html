@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100416;18062000">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western" STYLE="margin-top: 0.17in; margin-bottom: 0in">fix
+property/global command 
+</H3>
+<H3 CLASS="western">fix property/peratom command 
+</H3>
+<P><BR><BR>
+</P>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix id group property/peratom variablename style restartvalue comm_ghost_value comm_reverse_ghost_value defaultvalue(s)...
+fix id group property/global variablename style stylearg defaultvalue(s)... </PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">property/global or
+	property/peratom = style name of this fix command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">variablename = a valid C++ string</P>
+	<LI><P STYLE="margin-bottom: 0in">restartvalues = 'yes' or 'no'</P>
+	<LI><P STYLE="margin-bottom: 0in">comm_ghost_value = 'yes' or 'no'</P>
+	<LI><P STYLE="margin-bottom: 0.2in">comm_reverse_ghost_value = 'yes'
+	or 'no'</P>
+</UL>
+<P STYLE="margin-bottom: 0in">     fix property/global:</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">style = scalar or vector or matrix
+	or peratomtype or peratomtypepair<BR>   stylearg for scalar/vector:
+	none<BR>   stylearg for matrix: nCols<BR><BR>
+	</P>
+</UL>
+<P STYLE="margin-bottom: 0in">      fix  property/peratom:</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">style = scalar or vector</P>
+	<LI><P STYLE="margin-bottom: 0in">restartvalue = yes or no</P>
+	<LI><P STYLE="margin-bottom: 0in">communicate_ghost_value = yes or
+	no</P>
+	<LI><P>communicate_reverse_ghost_value = yes or no</P>
+	<PRE></PRE>
+</UL>
+<P><B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P STYLE="margin-bottom: 0.2in; font-weight: normal">This command is
+not available in LAMMPS.</P>
+<P><B>Description:</B> 
+</P>
+<P><B>Fix property/peratom</B> reserves peratom properties to be
+accessed by the user or other fixes. Style scalar reserves one value
+per atom, style vector multiple values per atoms, where the number of
+defaultvalues (that are assigned to the atoms at creation) determines
+the length of the vector. The group of atoms the fix is applied to
+is always &quot;all&quot;, irrespective of which group is used for
+the fix command. If you want to assign different values for
+different groups, you can use the set command with keyword
+'property/peratom'.</P>
+<P><B>Fix property/global</B> reserves global properties to be
+accessed by the user or other fixes or pair styles. The number of
+defaultvalues determines the length of the vector / the number of
+matrix components. For style vector or peratomtype, the user
+provides the number of vector components. For style matrix or
+peratomtypepair, the user provides the number of matrix columns
+(nCols).</P>
+<P>Example: nCols= 2 and defaultvalues = 1 2 3 4 5 6  would be mapped
+into a matrix like<BR>[ 1 2 ]<BR>[ 3 4 ]<BR>[ 5 6 ]<BR>Note that
+the number of default values must thus be a multiple of nCols. <BR>Note
+that vector and peratomtype do the same thing, peratomtype is just
+provided to make input scripts more readable.<BR>Note that matrix
+and peratomtypepair do the same thing, peratomtype is just provided
+to make input scripts more readable.</P>
+<P>Note that the group of atoms the fix is applied to is ignored (as
+the fix is not applied to atoms, but defines values of global scope).</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P>Information about this fix is written to <A HREF="restart.html">binary
+restart files</A> if you set 'restartvalue' to “yes”.</P>
+<P>The <A HREF="fix_modify.html">fix_modify</A> <I>energy</I> option
+is supported by this fix to add the potential &quot;energy&quot;
+inferred by the added force to the system's potential energy as part
+of <A HREF="thermo_style.html">thermodynamic output</A>. This is a
+fictitious quantity but is needed so that the <A HREF="minimize.html">minimize</A>
+command can include the forces added by this fix in a consistent
+manner. I.e. there is a decrease in potential energy when atoms move
+in the direction of the added force. 
+</P>
+<P><B>Fix property/peratom</B> computes a scalar (for style scalar)
+or  a vector of values (for style vector), which can be accessed by
+various <A HREF="Section_howto.html#4_15">output commands</A>. 
+</P>
+<P>No parameter of this fix can be used with the <I>start/stop</I>
+keywords of the <A HREF="run.html">run</A> command. 
+</P>
+<P><B>Restrictions:</B> none 
+</P>
+<P><B>Related commands:</B> 
+</P>
+<P><A HREF="set.html">set</A>, <A HREF="pair_gran.html">pair_gran</A></P>
+<P><B>Default:</B> none 
+</P>
+</BODY>
+</HTML>

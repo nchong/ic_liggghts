@@ -1,0 +1,112 @@
+# tbird = Dell cluster with Xeons, Intel mpicxx, native MPI, FFTW
+
+SHELL = /bin/sh
+
+# this Makefile builds LAMMPS for openMPI running on Tbird
+# as of April 09, you want these modules loaded, which are not the default:
+#   mpi/openmpi-1.2.8_intel-11.0-f074-c074
+#   misc/env-openmpi-1.2
+#   compilers/intel-11.0-f074-c074
+#   libraries/intel-mkl
+#   libraries/intel_fftw-10.0.4.023
+#   libraries/intel-mkl-11.0.074
+# you can determine which modules are loaded by typing:
+#   module list
+# you can load these modules by putting
+#   these lines in your .cshrc or other start-up shell file
+#   or by typing them before you build LAMMPS:
+#     module switch mpi mpi/openmpi-1.2.8_intel-11.0-f074-c074
+#     module load libraries/intel_fftw-10.0.4.023
+#     module load libraries/intel-mkl-11.0.074
+# these same modules need to be loaded to submit a LAMMPS job,
+#   either interactively or via a batch script
+
+# ---------------------------------------------------------------------
+# compiler/linker settings
+# specify flags and libraries needed for your compiler
+
+CC =		mpicxx
+CCFLAGS =	-O
+DEPFLAGS =	-M
+LINK =		mpicxx
+LINKFLAGS =	-O
+LIB =           -lstdc++ -lm
+ARCHIVE =	ar
+ARFLAGS =	-rc
+SIZE =		size
+
+# ---------------------------------------------------------------------
+# LAMMPS-specific settings
+# specify settings for LAMMPS features you will use
+
+# LAMMPS ifdef options, see doc/Section_start.html
+
+LMP_INC =	-DLAMMPS_GZIP
+
+# MPI library, can be src/STUBS dummy lib
+# INC = path for mpi.h, MPI compiler settings
+# PATH = path for MPI library
+# LIB = name of MPI library
+
+MPI_INC =       -DMPICH_IGNORE_CXX_SEEK 
+MPI_PATH = 
+MPI_LIB =	-lmpich -lpthread
+
+# FFT library, can be -DFFT_NONE if not using PPPM from KSPACE package
+# INC = -DFFT_FFTW, -DFFT_INTEL, -DFFT_NONE, etc, FFT compiler settings
+# PATH = path for FFT library
+# LIB = name of FFT library
+
+FFT_INC =       -DFFT_FFTW -I$(FFTW_INCLUDE)
+FFT_PATH = 
+FFT_LIB =	$(BLASLIB) $(FFTW_LINK_LINE)
+
+# additional system libraries needed by LAMMPS package libraries
+# these settings are IGNORED if the corresponding LAMMPS package
+#   (e.g. gpu, meam) is NOT included in the LAMMPS build
+# SYSLIB = names of libraries
+# SYSPATH = paths of libraries
+
+gpu_SYSLIB =       -lcudart
+meam_SYSLIB =      -lifcore -lsvml -lompstub -limf
+reax_SYSLIB =      -lifcore -lsvml -lompstub -limf
+user-atc_SYSLIB =  -lblas -llapack
+
+gpu_SYSPATH =      -L/usr/local/cuda/lib64
+meam_SYSPATH =     -L/opt/intel/fce/10.0.023/lib
+reax_SYSPATH =     -L/opt/intel/fce/10.0.023/lib
+user-atc_SYSPATH = 	
+
+# ---------------------------------------------------------------------
+# build rules and dependencies
+# no need to edit this section
+
+include	Makefile.package
+
+EXTRA_INC = $(LMP_INC) $(PKG_INC) $(MPI_INC) $(FFT_INC)
+EXTRA_PATH = $(PKG_PATH) $(MPI_PATH) $(FFT_PATH) $(PKG_SYSPATH)
+EXTRA_LIB = $(PKG_LIB) $(MPI_LIB) $(FFT_LIB) $(PKG_SYSLIB)
+
+# Link target
+
+$(EXE):	$(OBJ)
+	$(LINK) $(LINKFLAGS) $(EXTRA_PATH) $(OBJ) $(EXTRA_LIB) $(LIB) -o $(EXE)
+	$(SIZE) $(EXE)
+
+# Library target
+
+lib:	$(OBJ)
+	$(ARCHIVE) $(ARFLAGS) $(EXE) $(OBJ)
+
+# Compilation rules
+
+%.o:%.cpp
+	$(CC) $(CCFLAGS) $(EXTRA_INC) -c $<
+
+%.d:%.cpp
+	$(CC) $(CCFLAGS) $(EXTRA_INC) $(DEPFLAGS) $< > $@
+
+# Individual dependencies
+
+DEPENDS = $(OBJ:.o=.d)
+include $(DEPENDS)

@@ -1,0 +1,63 @@
+<HTML>
+<CENTER><A HREF = "http://lammps.sandia.gov">LAMMPS WWW Site</A> - <A HREF = "Manual.html">LAMMPS Documentation</A> - <A HREF = "Section_commands.html#comm">LAMMPS Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>change_box command 
+</H3>
+<P><B>Syntax:</B>
+</P>
+<PRE>change_box style 
+</PRE>
+<LI>style = <I>ortho</I> or <I>triclinic</I> 
+
+<PRE>  <I>ortho</I> = convert simulation box from non-orthogonal (triclinic) to orthogonal
+  <I>triclinic</I> = convert simulation box from orthogonal to non-orthogonal (triclinic) 
+</PRE>
+<P><B>Examples:</B>
+</P>
+<PRE>change_box ortho
+change_box triclinic 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>By default LAMMPS runs a simulation in an orthogonal, axis-aligned
+simulation box.  LAMMPS can also run simulations in <A HREF = "Section_howto.html#4_12">non-orthogonal
+(triclinic) simulation boxes</A>.  A box is
+defined as either orthogonal or non-orthogonal when it is created via
+the <A HREF = "create_box.html">create_box</A>, <A HREF = "read_data.html">read_data</A>, or
+<A HREF = "read_restart.html">read_restart</A> commands.
+</P>
+<P>This command allows you to toggle the existing simulation box from
+orthogonal to non-orthogonal and vice versa.  For example, an initial
+equilibration simulation can be run in an orthogonal box, the box can
+be toggled to non-orthogonal, and then a <A HREF = "Section_howto.html#4_13">non-equilibrium MD (NEMD)
+simulation</A> can be run with deformation via
+the <A HREF = "fix_deform.html">fix deform</A> command.
+</P>
+<P>Note that if the simulation box is currently non-orthogonal and has
+non-zero tilt in xy, yz, or xz, then it cannot be converted to an
+orthogonal box.
+</P>
+<P><B>Restrictions:</B>
+</P>
+<P>At the point in the input script when this command is issued, no
+<A HREF = "dump.html">dumps</A> can be active, nor can a <A HREF = "fix_ave_spatial.html">fix
+ave/spatial</A> or <A HREF = "fix_deform.html">fix deform</A> be
+active.  This is because these commands test whether the simulation
+box is orthogonal when they are first issued.  Note that these
+commands can appear in your script before a change_box command is
+issued, so long as an <A HREF = "undump.html">undump</A> or <A HREF = "unfix.html">unfix</A>
+command is also used to turn them off.
+</P>
+<P><B>Related commands:</B> none
+</P>
+<P><B>Default:</B> none
+</P>
+</HTML>

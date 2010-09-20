@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100603;12312400">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://lammps.sandia.gov/">LAMMPS
+WWW Site</A> - <A HREF="Manual.html">LAMMPS Documentation</A> -
+<A HREF="Section_commands.html#comm">LAMMPS Commands</A> 
+</P>
+<HR>
+<H3 CLASS="western">fix particletemplate/sphere command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ID group-ID particletemplate/sphere seed keyword values ... </PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">particletemplate/sphere = style
+	name of this fix command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">seed = random number generator
+	seed (integer value) 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">zero or more keyword/value pairs
+	can be appended</P>
+	<LI><P STYLE="margin-bottom: 0in">keyword = <I>atom_type</I> or
+	<I>density</I> or <I><SPAN STYLE="font-weight: normal">radius</SPAN></I>
+		</P>
+</UL>
+<UL>
+	<P STYLE="margin-bottom: 0in"><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2><I>atom_type</I>
+	value = atom type assigned to this particle template<BR><I>density</I>
+	values =  random_style param1 (param2)</FONT></FONT></P>
+	<PRE>    <FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>random_style = 'constant' or 'uniform' or 'gaussian'<BR>    param1 = density for 'constant', low value of density for 'uniform', expectancy value for 'gaussian'<BR>	    param2 = omitted for 'constant', high value of density for 'uniform', sigma value for 'gaussian'</FONT></FONT></PRE><P STYLE="margin-bottom: 0in">
+	<FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2><I>radius</I>
+	values =  random_style param1 (param2)</FONT></FONT></P>
+	<PRE>    <FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2><I>random_style = 'constant' or 'uniform' or 'gaussian'<BR>    param1 = radius for 'constant', low value of radius for 'uniform', expectancy value for 'gaussian'<BR>	    param2 = omitted for 'constant', high value of radius for 'uniform', sigma value for 'gaussian'</I></FONT></FONT></PRE>
+</UL>
+<UL>
+	<PRE></PRE>
+</UL>
+<P><B>Examples:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix pts1 all particletemplate/sphere 1 atom_type 1 density constant 2500 radius constant 0.0015</PRE><P>
+<B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P STYLE="font-weight: normal">This LIGGGHTS command is not available
+in LAMMPS.</P>
+<P><B>Description:</B> 
+</P>
+<P>Define a particle that is used as input for a
+<A HREF="fix_particledistribution_discrete.html"><SPAN STYLE="font-weight: normal">fix_particledistribution_discrete</SPAN></A>
+command. You can choose the atom type, density and radius of the
+particles. For density and radius, you can choose between 'constant',
+'uniform' and 'gaussian' random styles. It is thus possible to define
+a uniform or gaussian distribution on top of the discrete
+distribution defined by <A HREF="fix_particledistribution_discrete.html"><SPAN STYLE="font-weight: normal">fix_particledistribution_discrete</SPAN></A></P>
+<P>IMPORTANT NOTE: As opposed to the number-based distributions used
+by <A HREF="fix_pour.html">fix_pour</A> and <A HREF="fix_pour_legacy.html">fix_pour_legacy</A>,
+this fix uses the more common distribution based on mass-% for the
+radius distribution (as does <A HREF="fix_particledistribution_discrete.html"><SPAN STYLE="font-weight: normal">fix_particledistribution_discrete</SPAN></A>).</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P>Information about the random state in this fix is written to
+<A HREF="restart.html">binary restart files</A> so you can restart a
+simulation with the same particles being chosen for insertion. None
+of the <A HREF="fix_modify.html">fix_modify</A> options are relevant
+to this fix. No global scalar or vector or per-atom quantities are
+stored by this fix for access by various <A HREF="Section_howto.html#4_15">output
+commands</A>. No parameter of this fix can be used with the
+<I>start/stop</I> keywords of the <A HREF="run.html">run</A> command.
+This fix is not invoked during <A HREF="minimize.html">energy
+minimization</A>. 
+</P>
+<P><B>Restrictions:</B> none 
+</P>
+<P><B>Related commands:</B> 
+</P>
+<P ALIGN=LEFT><A HREF="">fix_particletemplate_sphere</A> <A HREF="fix_pour_dev.html"><SPAN STYLE="font-weight: normal">fix_pour_dev</SPAN></A></P>
+<P><B>Default:</B> radius = 1.0, density = 1.0, atom_type = 1  
+</P>
+</BODY>
+</HTML>

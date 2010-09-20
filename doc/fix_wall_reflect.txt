@@ -1,0 +1,72 @@
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+fix wall/reflect command :h3
+
+[Syntax:]
+
+fix ID group-ID wall/reflect keyword ... :pre
+
+ID, group-ID are documented in "fix"_fix.html command
+wall/reflect = style name of this fix command
+one or more keyword/value pairs may be appended
+keyword = {xlo} or {xhi} or {ylo} or {yhi} or {zlo} or {zhi} :ul
+
+[Examples:]
+
+fix xwalls all wall/reflect xlo xhi
+fix walls all wall/reflect xlo ylo zlo xhi yhi zhi :pre
+
+[Description:]
+
+Bound the simulation with one or more walls which reflect particles
+when they attempt to move thru them. 
+
+Reflection means that if an atom moves outside the box on a timestep
+by a distance delta (e.g. due to "fix nve"_fix_nve.html), then it is
+put back inside the box by the same delta and the sign of the
+corresponding component of its velocity is flipped.
+
+When used in conjunction with "fix nve"_fix_nve.html and "run_style
+verlet"_run_style.html, the resultant time-integration algorithm is
+equivalent to the primitive splitting algorithm (PSA) described by
+"Bond"_#Bond.  Because each reflection event divides
+the corresponding timestep asymmetrically, energy conservation is only
+satisfied to O(dt), rather than to O(dt^2) as it would be for
+velocity-Verlet integration without reflective walls.
+
+[Restart, fix_modify, output, run start/stop, minimize info:]
+
+No information about this fix is written to "binary restart
+files"_restart.html.  None of the "fix_modify"_fix_modify.html options
+are relevant to this fix.  No global scalar or vector or per-atom
+quantities are stored by this fix for access by various "output
+commands"_Section_howto.html#4_15.  No parameter of this fix can be
+used with the {start/stop} keywords of the "run"_run.html command.
+This fix is not invoked during "energy minimization"_minimize.html.
+
+[Restrictions:]
+
+Any dimension (xyz) that has a reflecting wall must be non-periodic.
+
+A reflecting wall should not be used with rigid bodies such as those
+defined by a "fix rigid" command.  This is because the wall/reflect
+displaces atoms directly rather than exerts a force on them.  For
+rigid bodies, use a soft wall instead, such as "fix
+wall/lj93"_fix_wall_lj93.html.  LAMMPS will flag the use of a rigid
+fix with fix wall/reflect with a warning, but will not generate an
+error.
+
+[Related commands:]
+
+"fix wall/lj93"_fix_wall_lj93.html command
+
+[Default:] none
+
+:link(Bond)
+[(Bond)] Bond and Leimkuhler, SIAM J Sci Comput, 30, p 134 (2007).

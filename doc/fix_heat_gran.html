@@ -1,0 +1,111 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100420;13263000">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western"><FONT FACE="Liberation Serif, serif">fix
+heat/gran command </FONT>
+</H3>
+<P><FONT FACE="Liberation Serif, serif"><B>Syntax:</B> </FONT>
+</P>
+<PRE STYLE="margin-bottom: 0.2in"><FONT FACE="Liberation Serif, serif">fix ID group-ID/gran T0 </FONT></PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Liberation Serif, serif">ID,
+	group-ID are documented in <A HREF="fix.html">fix</A></FONT> <FONT FACE="Liberation Serif, serif">command
+	</FONT>
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Liberation Serif, serif">heat/gran
+	= style name of this fix command </FONT>
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Liberation Serif, serif">T0
+	= initial (default) temperature for the particles </FONT>
+	</P>
+</UL>
+<P><FONT FACE="Liberation Serif, serif"><B>Examples:</B> </FONT>
+</P>
+<PRE STYLE="margin-bottom: 0.2in"><FONT FACE="Liberation Serif, serif">fix 3 hg heat/gran 273.15</FONT></PRE><P>
+<B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P STYLE="margin-bottom: 0.2in; font-weight: normal"><FONT FACE="Liberation Serif, serif">This
+command is not available in LAMMPS.</FONT></P>
+<P><FONT FACE="Liberation Serif, serif"><B>Description:</B> </FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif">Calculates heat conduction
+between particles in contact and temperature update according to </FONT>
+</P>
+<P><IMG SRC="fix_heat_gran_html_m2d34b011.png" NAME="graphics1" ALIGN=LEFT WIDTH=324 HEIGHT=332 BORDER=0><BR CLEAR=LEFT><FONT FACE="Liberation Serif, serif">It
+is assumed that the Temperature within the particles is uniform. To
+make particles adiabatic (so they do not change the temperature), do
+not include them in the fix group.</FONT></P>
+<P><FONT FACE="Liberation Serif, serif">To set Temperature for a
+group of particles, you can use the set command with set keyword:
+'property/peratom' and set values: 'Temp T'. T is the temperature
+value you want the particles to have </FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif">To set heat sources (or
+sinks) for a group of particles, you can also use the set command
+with the set keyword: 'property/peratom' and the set values:
+'heatSource h'. h is the heat source value you want the particles to
+have (in Energy/time units). A negative value means it is a heat
+sink.</FONT></P>
+<P><FONT FACE="Liberation Serif, serif">Examples: <BR>set region
+halfbed property/peratom Temp 800.<BR>set region srcreg
+property/peratom heatSource 0.5</FONT></P>
+<P><FONT FACE="Liberation Serif, serif"><B>Output information:</B></FONT></P>
+<P><FONT FACE="Liberation Serif, serif">You can visualize the heat
+sources by accessing f_heatSource[0], and the heatFluxes by
+f_heatFlux[0] . With f_Temp[0] or f_id[0] (where id is the fix id)
+you can access the per-particle temperature. You can also access the
+total thermal energy of the system (useful for the thermo command)
+with f_id .</FONT></P>
+<P><FONT FACE="Liberation Serif, serif"><B>Restart, fix_modify, run
+start/stop, minimize info:</B> </FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif">The particle temperature,
+heat flux and heat source is written to <A HREF="restart.html">binary
+restart files</A>, so a simulation can continue properly. None of the
+<A HREF="fix_modify.html">fix_modify</A></FONT> <FONT FACE="Liberation Serif, serif">options
+are relevant to this fix. </FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif">This fix computes a scalar
+which can be accessed by various <A HREF="Section_howto.html#4_15">output
+commands</A>. This scalar is the most recent value by which velocites
+were scaled. The scalar value calculated by this fix is &quot;intensive&quot;.
+</FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif">No parameter of this fix can
+be used with the </FONT><FONT FACE="Liberation Serif, serif"><I>start/stop</I></FONT>
+<FONT FACE="Liberation Serif, serif">keywords of the <A HREF="run.html">run</A></FONT>
+<FONT FACE="Liberation Serif, serif">command. This fix is not invoked
+during <A HREF="minimize.html">energy minimization</A>. </FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif"><B>Restrictions:</B> none </FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif"><B>Related commands:</B> </FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif"><A HREF="compute_temp.html">compute
+temp</A>, <A HREF="compute_temp_region.html">compute temp/region</A></FONT>
+</P>
+<P><FONT FACE="Liberation Serif, serif"><B>Default:</B> none </FONT>
+</P>
+</BODY>
+</HTML>

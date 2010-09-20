@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100629;9585400">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western">fix mesh/gran/6dof command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ID group-ID mesh/gran filename walltype scalefactor xoff yoff zoff phix phiy phiz
+keywords values ... </PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">mesh/gran/6dof = style name of
+	this fix command</P>
+</UL>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">filename, walltype, scalefactor,
+	xoff, yoff,zoff , phix, phiy, phiz are documented in <A HREF="fix_mesh_gran.html">fix
+	mesh/gran</A>.<BR>Please not the restrictions that apply!</P>
+	<LI><P STYLE="margin-bottom: 0in">keyword s= <I>mass</I>
+	(obligatory), <I>com</I> (obligatory), <I>vcm</I> (optional), <I>angmom</I>
+	(optional), <I>moi</I> (obligatory)</P>
+	<P STYLE="margin-bottom: 0in"><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2><I>mass</I></FONT></FONT>
+	<FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>value = mass</FONT></FONT></P>
+</UL>
+<UL>
+	<PRE>    <FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>mass = mass of the rigid body (mass units)</FONT></FONT>
+<FONT SIZE=2><I>com </I>values = x, y, z</FONT>
+    <FONT SIZE=2>x, y, z = coordinates of the center of mass of the body</FONT> (distance units)
+<I>vcm</I> values = v<FONT SIZE=2>x, vy, vz</FONT>
+    v<FONT SIZE=2>x, vy, vz = velocities of the center of mass of the body</FONT> (velocity units)
+<I>angmom</I> values = a<FONT SIZE=2>x, ay, az</FONT>
+    a<FONT SIZE=2>x, ay, az = initial angular momentum around x-, y-, and z-axis </FONT>
+<I>moi</I> values = Ixx, Iyy, Izz, Ixy, Ixz, Iyz
+    Ixx, Iyy, Izz, Ixy, Ixz, Iyz = moments of inertia around the given axis</PRE>
+</UL>
+<P><B>Example:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix cad all mesh/gran/6dof box.stl 1 1. 0. 0. 0. 0. 0. 0. &amp;
+mass 40 com 0. 0. 0. vcm 0. 0. -0.5 angmom 1. 0. 0. &amp;
+moi 0.266666 0.266666 0.266666 0. 0. 0.</PRE><P>
+<B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P STYLE="margin-bottom: 0.2in; font-weight: normal">This command is
+not available in LAMMPS.</P>
+<P><B>Description:</B> 
+</P>
+<P>This fix is does the same as <A HREF="fix_mesh_gran.html">fix
+mesh/gran</A> but it additionally integrates the motion of the mesh
+assuming it to be a rigid body with the given com (center of mass)
+and moi (moments of inertia). Optionally, you can specify an initial
+velocity and angular momentum of the rigid body. Please note the
+difference between angular velocity omega and angular momentum (which
+is I*omega)</P>
+<P>IMPORTANT NOTE: 
+</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P>This fix stores a global vector with 6 components for access by
+various <A HREF="Section_howto.html#4_15">output commands</A>. The
+first 3 components are equal to the total force on the mesh, the last
+3 components store the total torque on the body exerted by the
+particles. Other info see <A HREF="fix_mesh_gran.html">fix mesh/gran.</A>
+Furthermore, this fix writes the state of the rigid body
+(translational and rotational) to binary restart files so that a
+simulation can continue correctly. Other infos see <A HREF="fix_mesh_gran.html">fix
+mesh/gran</A>.</P>
+<P><B>Restrictions:</B> 
+</P>
+<P>This fix is not part of the public LIGGGHTS release. For more
+information, send a message to <A HREF="mailto:contact@liggghts.com">contact@liggghts.com</A><A HREF="fix_mesh_gran.html">.</A></P>
+<P STYLE="font-weight: normal">When using this fix, it is not
+possible to scale or rotate the body, so the first args have to be:</P>
+<PRE STYLE="margin-bottom: 0.2in; font-weight: normal">scalefactor = 1.0<BR>xoff = 0.0 <BR>yoff = 0.0 <BR>zoff = 0.0 <BR>phix = 0.0 <BR>phiy = 0.0 <BR>phiz = 0.0</PRE><P STYLE="font-weight: normal">
+We might relax this restriction in the future.</P>
+<P><B>Related commands:</B> 
+</P>
+<P><A HREF="fix_wall_gran.html">fix wall/gran</A> 
+</P>
+<P><B>Default:</B> none 
+</P>
+</BODY>
+</HTML>

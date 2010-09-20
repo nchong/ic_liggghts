@@ -1,0 +1,50 @@
+<HTML>
+<CENTER><A HREF = "http://lammps.sandia.gov">LAMMPS WWW Site</A> - <A HREF = "Manual.html">LAMMPS Documentation</A> - <A HREF = "Section_commands.html#comm">LAMMPS Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>dihedral_style harmonic command 
+</H3>
+<P><B>Syntax:</B>
+</P>
+<PRE>dihedral_style harmonic 
+</PRE>
+<P><B>Examples:</B>
+</P>
+<PRE>dihedral_style harmonic
+dihedral_coeff 1 80.0 1 2 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>The <I>harmonic</I> dihedral style uses the potential
+</P>
+<CENTER><IMG SRC = "Eqs/dihedral_harmonic.jpg">
+</CENTER>
+<P>The following coefficients must be defined for each dihedral type via the
+<A HREF = "dihedral_coeff.html">dihedral_coeff</A> command as in the example above, or in
+the data file or restart files read by the <A HREF = "read_data.html">read_data</A>
+or <A HREF = "read_restart.html">read_restart</A> commands:
+</P>
+<UL><LI>K (energy)
+<LI>d (+1 or -1)
+<LI>n (integer >= 0) 
+</UL>
+<P><B>Restrictions:</B>
+</P>
+<P>This dihedral style can only be used if LAMMPS was built with the
+"molecular" package (which it is by default).  See the <A HREF = "Section_start.html#2_3">Making
+LAMMPS</A> section for more info on packages.
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "dihedral_coeff.html">dihedral_coeff</A>
+</P>
+<P><B>Default:</B> none
+</P>
+</HTML>

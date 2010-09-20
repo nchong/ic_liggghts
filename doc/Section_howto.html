@@ -1,0 +1,1838 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100416;18575400">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+		H4.western { font-family: "Albany", sans-serif; font-size: 11pt; font-style: italic }
+		H4.cjk { font-family: "HG Mincho Light J"; font-size: 11pt; font-style: italic }
+		H4.ctl { font-family: "Arial Unicode MS"; font-size: 11pt; font-style: italic }
+		H5.western { font-family: "Albany", sans-serif; font-size: 11pt }
+		H5.cjk { font-family: "HG Mincho Light J"; font-size: 11pt }
+		H5.ctl { font-family: "Arial Unicode MS"; font-size: 11pt }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="Section_commands.html">Previous
+Section</A> - <A HREF="http://lammps.sandia.gov/">LAMMPS WWW Site</A>
+- <A HREF="Manual.html">LAMMPS Documentation</A> - <A HREF="Section_commands.html#comm">LAMMPS
+Commands</A> - <A HREF="Section_example.html">Next Section</A> 
+</P>
+<HR>
+<H3 CLASS="western">4. How-to discussions 
+</H3>
+<P>The following sections describe what commands can be used to
+perform certain kinds of LAMMPS simulations. 
+</P>
+<P>4.1 <A HREF="#4_1">Restarting a simulation</A><BR>4.2 <A HREF="#4_2">2d
+simulations</A><BR>4.3 <A HREF="#4_3">CHARMM and AMBER force
+fields</A><BR>4.4 <A HREF="#4_4">Running multiple simulations from
+one input script</A><BR>4.5 <A HREF="#4_5">Parallel tempering</A><BR>4.6
+<A HREF="#4_6">Granular models</A><BR>4.7 <A HREF="#4_7">TIP3P water
+model</A><BR>4.8 <A HREF="#4_8">TIP4P water model</A><BR>4.9 <A HREF="#4_9">SPC
+water model</A><BR>4.10 <A HREF="#4_10">Coupling LAMMPS to other
+codes</A><BR>4.11 <A HREF="#4_11">Visualizing LAMMPS snapshots</A><BR>4.12
+<A HREF="#4_12">Non-orthogonal simulation boxes</A><BR>4.13 <A HREF="#4_13">NEMD
+simulations</A><BR>4.14 <A HREF="#4_14">Extended spherical and
+aspherical particles</A><BR>4.15 <A HREF="#4_15">Output from LAMMPS
+(thermo, dumps, computes, fixes, variables)</A><BR>4.16
+<A HREF="#4_16">Thermostatting, barostatting and computing
+temperature</A><BR>4.17 <A HREF="#4_17">Walls</A> 
+</P>
+<P>The example input scripts included in the LAMMPS distribution and
+highlighted in <A HREF="Section_example.html">this section</A> also
+show how to setup and run various kinds of problems. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_1"></A>4.1 Restarting a simulation 
+</H4>
+<P>There are 3 ways to continue a long LAMMPS simulation. Multiple
+<A HREF="run.html">run</A> commands can be used in the same input
+script. Each run will continue from where the previous run left off.
+Or binary restart files can be saved to disk using the <A HREF="restart.html">restart</A>
+command. At a later time, these binary files can be read via a
+<A HREF="read_restart.html">read_restart</A> command in a new script.
+Or they can be converted to text data files and read by a <A HREF="read_data.html">read_data</A>
+command in a new script. <A HREF="Section_tools.html">This section</A>
+discusses the <I>restart2data</I> tool that is used to perform the
+conversion. 
+</P>
+<P>Here we give examples of 2 scripts that read either a binary
+restart file or a converted data file and then issue a new run
+command to continue where the previous run left off. They illustrate
+what settings must be made in the new script. Details are discussed
+in the documentation for the <A HREF="read_restart.html">read_restart</A>
+and <A HREF="read_data.html">read_data</A> commands. 
+</P>
+<P>Look at the <I>in.chain</I> input script provided in the <I>bench</I>
+directory of the LAMMPS distribution to see the original script that
+these 2 scripts are based on. If that script had the line 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">restart         50 tmp.restart </PRE><P>
+added to it, it would produce 2 binary restart files (tmp.restart.50
+and tmp.restart.100) as it ran. 
+</P>
+<P>This script could be used to read the 1st restart file and re-run
+the last 50 timesteps: 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">read_restart    tmp.restart.50 
+neighbor        0.4 bin
+neigh_modify    every 1 delay 1 
+fix             1 all nve
+fix             2 all langevin 1.0 1.0 10.0 904297 
+timestep        0.012 
+run             50 </PRE><P>
+Note that the following commands do not need to be repeated because
+their settings are included in the restart file: <I>units,
+atom_style, special_bonds, pair_style, bond_style</I>. However these
+commands do need to be used, since their settings are not in the
+restart file: <I>neighbor, fix, timestep</I>. 
+</P>
+<P>If you actually use this script to perform a restarted run, you
+will notice that the thermodynamic data match at step 50 (if you also
+put a &quot;thermo 50&quot; command in the original script), but do
+not match at step 100. This is because the <A HREF="fix_langevin.html">fix
+langevin</A> command uses random numbers in a way that does not allow
+for perfect restarts. 
+</P>
+<P>As an alternate approach, the restart file could be converted to a
+data file using this tool: 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">restart2data tmp.restart.50 tmp.restart.data </PRE><P>
+Then, this script could be used to re-run the last 50 steps: 
+</P>
+<PRE>units           lj
+atom_style      bond
+pair_style      lj/cut 1.12
+pair_modify     shift yes
+bond_style      fene
+special_bonds   0.0 1.0 1.0 
+read_data       tmp.restart.data 
+neighbor        0.4 bin
+neigh_modify    every 1 delay 1 
+fix             1 all nve
+fix             2 all langevin 1.0 1.0 10.0 904297 
+timestep        0.012 
+reset_timestep  50
+run             50 </PRE><P>
+Note that nearly all the settings specified in the original <I>in.chain</I>
+script must be repeated, except the <I>pair_coeff</I> and <I>bond_coeff</I>
+commands since the new data file lists the force field coefficients.
+Also, the <A HREF="reset_timestep.html">reset_timestep</A> command is
+used to tell LAMMPS the current timestep. This value is stored in
+restart files, but not in data files. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_2"></A>4.2 2d simulations 
+</H4>
+<P>Use the <A HREF="dimension.html">dimension</A> command to specify
+a 2d simulation. 
+</P>
+<P>Make the simulation box periodic in z via the <A HREF="boundary.html">boundary</A>
+command. This is the default. 
+</P>
+<P>If using the <A HREF="create_box.html">create box</A> command to
+define a simulation box, set the z dimensions narrow, but finite, so
+that the create_atoms command will tile the 3d simulation box with a
+single z plane of atoms - e.g. 
+</P>
+<PRE STYLE="margin-bottom: 0.2in"><A HREF="create_box.html">create box</A> 1 -10 10 -10 10 -0.25 0.25 </PRE><P>
+If using the <A HREF="read_data.html">read data</A> command to read
+in a file of atom coordinates, set the &quot;zlo zhi&quot; values to
+be finite but narrow, similar to the create_box command settings just
+described. For each atom in the file, assign a z coordinate so it
+falls inside the z-boundaries of the box - e.g. 0.0. 
+</P>
+<P>Use the <A HREF="fix_enforce2d.html">fix enforce2d</A> command as
+the last defined fix to insure that the z-components of velocities
+and forces are zeroed out every timestep. The reason to make it the
+last fix is so that any forces induced by other fixes will be zeroed
+out. 
+</P>
+<P>Many of the example input scripts included in the LAMMPS
+distribution are for 2d models. 
+</P>
+<P>IMPORTANT NOTE: Some models in LAMMPS treat particles as extended
+spheres, as opposed to point particles. In 2d, the particles will
+still be spheres, not disks, meaning their moment of inertia will be
+the same as in 3d. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_3"></A>4.3 CHARMM and AMBER force
+fields 
+</H4>
+<P>There are many different ways to compute forces in the <A HREF="http://www.scripps.edu/brooks">CHARMM</A>
+and <A HREF="http://amber.scripps.edu/">AMBER</A> molecular dynamics
+codes, only some of which are available as options in LAMMPS. A force
+field has 2 parts: the formulas that define it and the coefficients
+used for a particular system. Here we only discuss formulas
+implemented in LAMMPS. Setting coefficients is done in the input data
+file via the <A HREF="read_data.html">read_data</A> command or in the
+input script with commands like <A HREF="pair_coeff.html">pair_coeff</A>
+or <A HREF="bond_coeff.html">bond_coeff</A>. See <A HREF="Section_tools.html">this
+section</A> for additional tools that can use CHARMM or AMBER to
+assign force field coefficients and convert their output into LAMMPS
+input. 
+</P>
+<P>See <A HREF="#MacKerell">(MacKerell)</A> for a description of the
+CHARMM force field. See <A HREF="#Cornell">(Cornell)</A> for a
+description of the AMBER force field. 
+</P>
+<P>These style choices compute force field formulas that are
+consistent with common options in CHARMM or AMBER. See each command's
+documentation for the formula it computes. 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="bond_style.html">bond_style</A>
+	harmonic 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="angle_style.html">angle_style</A>
+	charmm 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="dihedral_style.html">dihedral_style</A>
+	charmm 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_style.html">pair_style</A>
+	lj/charmm/coul/charmm 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_style.html">pair_style</A>
+	lj/charmm/coul/charmm/implicit 
+	</P>
+	<LI><P><A HREF="pair_style.html">pair_style</A> lj/charmm/coul/long 
+	</P>
+</UL>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="special_bonds.html">special_bonds</A>
+	charmm 
+	</P>
+	<LI><P><A HREF="special_bonds.html">special_bonds</A> amber 
+	</P>
+</UL>
+<HR>
+<H4 CLASS="western"><A NAME="4_4"></A>4.4 Running multiple
+simulations from one input script 
+</H4>
+<P>This can be done in several ways. See the documentation for
+individual commands for more details on how these examples work. 
+</P>
+<P>If &quot;multiple simulations&quot; means continue a previous
+simulation for more timesteps, then you simply use the <A HREF="run.html">run</A>
+command multiple times. For example, this script 
+</P>
+<PRE>units lj
+atom_style atomic
+read_data data.lj
+run 10000
+run 10000
+run 10000
+run 10000
+run 10000 </PRE><P>
+would run 5 successive simulations of the same system for a total of
+50,000 timesteps. 
+</P>
+<P>If you wish to run totally different simulations, one after the
+other, the <A HREF="clear.html">clear</A> command can be used in
+between them to re-initialize LAMMPS. For example, this script 
+</P>
+<PRE>units lj
+atom_style atomic
+read_data data.lj
+run 10000
+clear
+units lj
+atom_style atomic
+read_data data.lj.new
+run 10000 </PRE><P>
+would run 2 independent simulations, one after the other. 
+</P>
+<P>For large numbers of independent simulations, you can use
+<A HREF="variable.html">variables</A> and the <A HREF="next.html">next</A>
+and <A HREF="jump.html">jump</A> commands to loop over the same input
+script multiple times with different settings. For example, this
+script, named in.polymer 
+</P>
+<PRE>variable d index run1 run2 run3 run4 run5 run6 run7 run8
+shell cd $d
+read_data data.polymer
+run 10000
+shell cd ..
+clear
+next d
+jump in.polymer </PRE><P>
+would run 8 simulations in different directories, using a
+data.polymer file in each directory. The same concept could be used
+to run the same system at 8 different temperatures, using a
+temperature variable and storing the output in different log and dump
+files, for example 
+</P>
+<PRE>variable a loop 8
+variable t index 0.8 0.85 0.9 0.95 1.0 1.05 1.1 1.15
+log log.$a
+read data.polymer
+velocity all create $t 352839
+fix 1 all nvt $t $t 100.0
+dump 1 all atom 1000 dump.$a
+run 100000
+next t
+next a
+jump in.polymer </PRE><P>
+All of the above examples work whether you are running on 1 or
+multiple processors, but assumed you are running LAMMPS on a single
+partition of processors. LAMMPS can be run on multiple partitions via
+the &quot;-partition&quot; command-line switch as described in <A HREF="Section_start.html#2_6">this
+section</A> of the manual. 
+</P>
+<P>In the last 2 examples, if LAMMPS were run on 3 partitions, the
+same scripts could be used if the &quot;index&quot; and &quot;loop&quot;
+variables were replaced with <I>universe</I>-style variables, as
+described in the <A HREF="variable.html">variable</A> command. Also,
+the &quot;next t&quot; and &quot;next a&quot; commands would need to
+be replaced with a single &quot;next a t&quot; command. With these
+modifications, the 8 simulations of each script would run on the 3
+partitions one after the other until all were finished. Initially, 3
+simulations would be started simultaneously, one on each partition.
+When one finished, that partition would then start the 4th
+simulation, and so forth, until all 8 were completed. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_5"></A>4.5 Parallel tempering 
+</H4>
+<P>The <A HREF="temper.html">temper</A> command can be used to
+perform a parallel tempering or replica-exchange simulation where
+multiple copies of a simulation are run at different temperatures on
+different sets of processors, and Monte Carlo temperature swaps are
+performed between pairs of copies. 
+</P>
+<P>Use the -procs and -in <A HREF="Section_start.html#2_6">command-line
+switches</A> to launch LAMMPS on multiple partitions. 
+</P>
+<P>In your input script, define a set of temperatures, one for each
+processor partition, using the <A HREF="variable.html">variable</A>
+command: 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">variable t world 300.0 310.0 320.0 330.0 </PRE><P>
+Define a fix of style <A HREF="fix_nvt.html">nvt</A> or <A HREF="fix_langevin.html">langevin</A>
+to control the temperature of each simulation: 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix myfix all nvt $t $t 100.0 </PRE><P>
+Use the <A HREF="temper.html">temper</A> command in place of a <A HREF="run.html">run</A>
+command to perform a simulation where tempering exchanges will take
+place: 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">temper 100000 100 $t myfix 3847 58382 </PRE>
+<HR>
+<H4 CLASS="western"><A NAME="4_6"></A>4.6 Granular models 
+</H4>
+<P>Granular system are composed of spherical particles with a
+diameter, as opposed to point particles. This means they have an
+angular velocity and torque can be imparted to them to cause them to
+rotate. 
+</P>
+<P>To run a simulation of a granular model, you will want to use the
+following commands: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="atom_style.html">atom_style</A>
+	granular 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nve_sphere.html">fix
+	nve/sphere</A> 
+	</P>
+	<LI><P><A HREF="fix_gravity.html">fix gravity</A> 
+	</P>
+</UL>
+<P>This compute 
+</P>
+<UL>
+	<LI><P><A HREF="compute_erotate_sphere.html">compute erotate/sphere</A>
+		</P>
+</UL>
+<P>calculates rotational kinetic energy which can be <A HREF="#4_15">output
+with thermodynamic info</A>. 
+</P>
+<P>Use one of these 3 pair potentials, which compute forces and
+torques between interacting pairs of particles: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_style.html">pair_style</A>
+	gran/hertz/history 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_style.html">pair_style</A>
+	gran/hooke/history</P>
+	<LI><P><A HREF="pair_style.html">pair_style</A> gran/hooke</P>
+</UL>
+<P>These commands implement fix options specific to granular systems:
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_freeze.html">fix
+	freeze</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_pour.html">fix pour</A>
+		</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_viscous.html">fix
+	viscous</A> 
+	</P>
+	<LI><P><A HREF="fix_wall_gran.html">fix wall/gran</A> 
+	</P>
+</UL>
+<P>The fix style <I>freeze</I> zeroes both the force and torque of
+frozen atoms, and should be used for granular system instead of the
+fix style <I>setforce</I>. 
+</P>
+<P>These are fix styles specific to LIGGGHTS you may consider to use:</P>
+<CENTER>
+	<TABLE WIDTH=523 BORDER=1 CELLPADDING=3 CELLSPACING=5>
+		<COL WIDTH=131>
+		<COL WIDTH=143>
+		<COL WIDTH=209>
+		<TR>
+			<TD WIDTH=131>
+				<P ALIGN=CENTER><A HREF="fix_heat_gran.html">fix_heat_gran</A></P>
+			</TD>
+			<TD WIDTH=143>
+				<P ALIGN=CENTER><A HREF="fix_mesh_gran.html">fix_mesh_gran</A></P>
+			</TD>
+			<TD WIDTH=209>
+				<P ALIGN=CENTER><A HREF="fix_move_mesh_gran.html">fix_move_mesh_gran</A>
+								</P>
+			</TD>
+		</TR>
+	</TABLE>
+</CENTER>
+<P>For computational efficiency, you can eliminate needless pairwise
+computations between frozen atoms by using this command: 
+</P>
+<UL>
+	<LI><P><A HREF="neigh_modify.html">neigh_modify</A> exclude 
+	</P>
+</UL>
+<HR>
+<H4 CLASS="western"><A NAME="4_7"></A>4.7 TIP3P water model 
+</H4>
+<P>The TIP3P water model as implemented in CHARMM <A HREF="#MacKerell">(MacKerell)</A>
+specifies a 3-site rigid water molecule with charges and
+Lennard-Jones parameters assigned to each of the 3 atoms. In LAMMPS
+the <A HREF="fix_shake.html">fix shake</A> command can be used to
+hold the two O-H bonds and the H-O-H angle rigid. A bond style of
+<I>harmonic</I> and an angle style of <I>harmonic</I> or <I>charmm</I>
+should also be used. 
+</P>
+<P>These are the additional parameters (in real units) to set for O
+and H atoms and the water molecule to run a rigid TIP3P-CHARMM model
+with a cutoff. The K values can be used if a flexible TIP3P model
+(without fix shake) is desired. If the LJ epsilon and sigma for HH
+and OH are set to 0.0, it corresponds to the original 1983 TIP3P
+model <A HREF="#Jorgensen">(Jorgensen)</A>. 
+</P>
+<P>O mass = 15.9994<BR>H mass = 1.008 
+</P>
+<P>O charge = -0.834<BR>H charge = 0.417 
+</P>
+<P>LJ epsilon of OO = 0.1521<BR>LJ sigma of OO = 3.1507<BR>LJ epsilon
+of HH = 0.0460<BR>LJ sigma of HH = 0.4000<BR>LJ epsilon of OH =
+0.0836<BR>LJ sigma of OH = 1.7753 
+</P>
+<P>K of OH bond = 450<BR>r0 of OH bond = 0.9572 
+</P>
+<P>K of HOH angle = 55<BR>theta of HOH angle = 104.52 
+</P>
+<P>These are the parameters to use for TIP3P with a long-range
+Coulombic solver (Ewald or PPPM in LAMMPS): 
+</P>
+<P>O mass = 15.9994<BR>H mass = 1.008 
+</P>
+<P>O charge = -0.830<BR>H charge = 0.415 
+</P>
+<P>LJ epsilon of OO = 0.102<BR>LJ sigma of OO = 3.188<BR>LJ epsilon,
+sigma of OH, HH = 0.0 
+</P>
+<P>K of OH bond = 450<BR>r0 of OH bond = 0.9572 
+</P>
+<P>K of HOH angle = 55<BR>theta of HOH angle = 104.52 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_8"></A>4.8 TIP4P water model 
+</H4>
+<P>The four-point TIP4P rigid water model extends the traditional
+three-point TIP3P model by adding an additional site, usually
+massless, where the charge associated with the oxygen atom is placed.
+This site M is located at a fixed distance away from the oxygen along
+the bisector of the HOH bond angle. A bond style of <I>harmonic</I>
+and an angle style of <I>harmonic</I> or <I>charmm</I> should also be
+used. 
+</P>
+<P>Currently, only a four-point model for long-range Coulombics is
+implemented via the LAMMPS <A HREF="pair_lj.html">pair style
+lj/cut/coul/long/tip4p</A>. A cutoff version may be added the future.
+For both models, the bond lengths and bond angles should be held
+fixed using the <A HREF="fix_shake.html">fix shake</A> command. 
+</P>
+<P>These are the additional parameters (in real units) to set for O
+and H atoms and the water molecule to run a rigid TIP4P model with a
+cutoff <A HREF="#Jorgensen">(Jorgensen)</A>. Note that the OM
+distance is specified in the <A HREF="pair_style.html">pair_style</A>
+command, not as part of the pair coefficients. 
+</P>
+<P>O mass = 15.9994<BR>H mass = 1.008 
+</P>
+<P>O charge = -1.040<BR>H charge = 0.520 
+</P>
+<P>r0 of OH bond = 0.9572<BR>theta of HOH angle = 104.52 
+</P>
+<P>OM distance = 0.15 
+</P>
+<P>LJ epsilon of O-O = 0.1550<BR>LJ sigma of O-O = 3.1536<BR>LJ
+epsilon, sigma of OH, HH = 0.0 
+</P>
+<P>These are the parameters to use for TIP4P with a long-range
+Coulombic solver (Ewald or PPPM in LAMMPS): 
+</P>
+<P>O mass = 15.9994<BR>H mass = 1.008 
+</P>
+<P>O charge = -1.0484<BR>H charge = 0.5242 
+</P>
+<P>r0 of OH bond = 0.9572<BR>theta of HOH angle = 104.52 
+</P>
+<P>OM distance = 0.1250 
+</P>
+<P>LJ epsilon of O-O = 0.16275<BR>LJ sigma of O-O = 3.16435<BR>LJ
+epsilon, sigma of OH, HH = 0.0 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_9"></A>4.9 SPC water model 
+</H4>
+<P>The SPC water model specifies a 3-site rigid water molecule with
+charges and Lennard-Jones parameters assigned to each of the 3 atoms.
+In LAMMPS the <A HREF="fix_shake.html">fix shake</A> command can be
+used to hold the two O-H bonds and the H-O-H angle rigid. A bond
+style of <I>harmonic</I> and an angle style of <I>harmonic</I> or
+<I>charmm</I> should also be used. 
+</P>
+<P>These are the additional parameters (in real units) to set for O
+and H atoms and the water molecule to run a rigid SPC model with
+long-range Coulombics (Ewald or PPPM in LAMMPS). 
+</P>
+<P>O mass = 15.9994<BR>H mass = 1.008 
+</P>
+<P>O charge = -0.820<BR>H charge = 0.410 
+</P>
+<P>LJ epsilon of OO = 0.1553<BR>LJ sigma of OO = 3.166<BR>LJ epsilon,
+sigma of OH, HH = 0.0 
+</P>
+<P>r0 of OH bond = 1.0<BR>theta of HOH angle = 109.47 
+</P>
+<P>To use SPC with a long-range Coulombic solver (Ewald or PPPM in
+LAMMPS), the only parameters that change are the partial charge
+assignments: 
+</P>
+<P>O charge = -0.8476<BR>H charge = 0.4238 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_10"></A>4.10 Coupling LAMMPS to other
+codes 
+</H4>
+<P>LAMMPS is designed to allow it to be coupled to other codes. For
+example, a quantum mechanics code might compute forces on a subset of
+atoms and pass those forces to LAMMPS. Or a continuum finite element
+(FE) simulation might use atom positions as boundary conditions on FE
+nodal points, compute a FE solution, and return interpolated forces
+on MD atoms. 
+</P>
+<P>LAMMPS can be coupled to other codes in at least 3 ways. Each has
+advantages and disadvantages, which you'll have to think about in the
+context of your application. 
+</P>
+<P>(1) Define a new <A HREF="fix.html">fix</A> command that calls the
+other code. In this scenario, LAMMPS is the driver code. During its
+timestepping, the fix is invoked, and can make library calls to the
+other code, which has been linked to LAMMPS as a library. This is the
+way the <A HREF="http://www.rpi.edu/~anderk5/lab">POEMS</A> package
+that performs constrained rigid-body motion on groups of atoms is
+hooked to LAMMPS. See the <A HREF="fix_poems.html">fix_poems</A>
+command for more details. See <A HREF="Section_modify.html">this
+section</A> of the documentation for info on how to add a new fix to
+LAMMPS. 
+</P>
+<P>(2) Define a new LAMMPS command that calls the other code. This is
+conceptually similar to method (1), but in this case LAMMPS and the
+other code are on a more equal footing. Note that now the other code
+is not called during the timestepping of a LAMMPS run, but between
+runs. The LAMMPS input script can be used to alternate LAMMPS runs
+with calls to the other code, invoked via the new command. The <A HREF="run.html">run</A>
+command facilitates this with its <I>every</I> option, which makes it
+easy to run a few steps, invoke the command, run a few steps, invoke
+the command, etc. 
+</P>
+<P>In this scenario, the other code can be called as a library, as in
+(1), or it could be a stand-alone code, invoked by a system() call
+made by the command (assuming your parallel machine allows one or
+more processors to start up another program). In the latter case the
+stand-alone code could communicate with LAMMPS thru files that the
+command writes and reads. 
+</P>
+<P>See <A HREF="Section_modify.html">this section</A> of the
+documentation for how to add a new command to LAMMPS. 
+</P>
+<P>(3) Use LAMMPS as a library called by another code. In this case
+the other code is the driver and calls LAMMPS as needed. Or a wrapper
+code could link and call both LAMMPS and another code as libraries.
+Again, the <A HREF="run.html">run</A> command has options that allow
+it to be invoked with minimal overhead (no setup or clean-up) if you
+wish to do multiple short runs, driven by another program. 
+</P>
+<P><A HREF="Section_start.html#2_4">This section</A> of the
+documentation describes how to build LAMMPS as a library. Once this
+is done, you can interface with LAMMPS either via C++, C, or Fortran
+(or any other language that supports a vanilla C-like interface, e.g.
+a scripting language). For example, from C++ you could create one (or
+more) &quot;instances&quot; of LAMMPS, pass it an input script to
+process, or execute individual commands, all by invoking the correct
+class methods in LAMMPS. From C or Fortran you can make function
+calls to do the same things. Library.cpp and library.h contain such a
+C interface with the functions: 
+</P>
+<PRE>void lammps_open(int, char **, MPI_Comm, void **);
+void lammps_close(void *);
+void lammps_file(void *, char *);
+char *lammps_command(void *, char *); </PRE><P>
+The functions contain C++ code you could write in a C++ application
+that was invoking LAMMPS directly. Note that LAMMPS classes are
+defined within a LAMMPS namespace (LAMMPS_NS) if you use them from
+another C++ application. 
+</P>
+<P>Two of the routines in library.cpp are of particular note. The
+lammps_open() function initiates LAMMPS and takes an MPI communicator
+as an argument. It returns a pointer to a LAMMPS &quot;object&quot;.
+As with C++, the lammps_open() function can be called multiple times,
+to create multiple instances of LAMMPS. 
+</P>
+<P>LAMMPS will run on the set of processors in the communicator. This
+means the calling code can run LAMMPS on all or a subset of
+processors. For example, a wrapper script might decide to alternate
+between LAMMPS and another code, allowing them both to run on all the
+processors. Or it might allocate half the processors to LAMMPS and
+half to the other code and run both codes simultaneously before
+syncing them up periodically. 
+</P>
+<P>Library.cpp contains a lammps_command() function to which the
+caller passes a single LAMMPS command (a string). Thus the calling
+code can read or generate a series of LAMMPS commands (e.g. an input
+script) one line at a time and pass it thru the library interface to
+setup a problem and then run it. 
+</P>
+<P>A few other sample functions are included in library.cpp, but the
+key idea is that you can write any functions you wish to define an
+interface for how your code talks to LAMMPS and add them to
+library.cpp and library.h. The routines you add can access any LAMMPS
+data. The examples/couple directory has example C++ and C codes which
+show how a stand-alone code can link LAMMPS as a library, run LAMMPS
+on a subset of processors, grab data from LAMMPS, change it, and put
+it back into LAMMPS. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_11"></A>4.11 Visualizing LAMMPS
+snapshots 
+</H4>
+<P>LAMMPS itself does not do visualization, but snapshots from LAMMPS
+simulations can be visualized (and analyzed) in a variety of ways. 
+</P>
+<P>LAMMPS snapshots are created by the <A HREF="dump.html">dump</A>
+command which can create files in several formats. The native LAMMPS
+dump format is a text file (see &quot;dump atom&quot; or &quot;dump
+custom&quot;) which can be visualized by the <A HREF="Section_tools.html#xmovie">xmovie</A>
+program, included with the LAMMPS package. This produces simple, fast
+2d projections of 3d systems, and can be useful for rapid debugging
+of simulation geometry and atom trajectories. 
+</P>
+<P>Several programs included with LAMMPS as auxiliary tools can
+convert native LAMMPS dump files to other formats. See the
+<A HREF="Section_tools.html">Section_tools</A> doc page for details.
+The first is the <A HREF="Section_tools.html#charmm">ch2lmp tool</A>,
+which contains a lammps2pdb Perl script which converts LAMMPS dump
+files into PDB files. The second is the <A HREF="Section_tools.html#arc">lmp2arc
+tool</A> which converts LAMMPS dump files into Accelrys' Insight MD
+program files. The third is the <A HREF="Section_tools.html#cfg">lmp2cfg
+tool</A> which converts LAMMPS dump files into CFG files which can be
+read into the <A HREF="http://164.107.79.177/Archive/Graphics/A">AtomEye</A>
+visualizer. 
+</P>
+<P>A Python-based toolkit distributed by our group can read native
+LAMMPS dump files, including custom dump files with additional
+columns of user-specified atom information, and convert them to
+various formats or pipe them into visualization software directly.
+See the <A HREF="http://www.cs.sandia.gov/~sjplimp/pizza.html">Pizza.py
+WWW site</A> for details. Specifically, Pizza.py can convert LAMMPS
+dump files into PDB, XYZ, <A HREF="http://www.ensight.com/">Ensight</A>,
+and VTK formats. Pizza.py can pipe LAMMPS dump files directly into
+the Raster3d and RasMol visualization programs. Pizza.py has tools
+that do interactive 3d OpenGL visualization and one that creates SVG
+images of dump file snapshots. 
+</P>
+<P>LAMMPS can create XYZ files directly (via &quot;dump xyz&quot;)
+which is a simple text-based file format used by many visualization
+programs including <A HREF="http://www.ks.uiuc.edu/Research/vmd">VMD</A>.
+</P>
+<P>LAMMPS can create DCD files directly (via &quot;dump dcd&quot;)
+which can be read by <A HREF="http://www.ks.uiuc.edu/Research/vmd">VMD</A>
+in conjunction with a CHARMM PSF file. Using this form of output
+avoids the need to convert LAMMPS snapshots to PDB files. See the
+<A HREF="dump.html">dump</A> command for more information on DCD
+files. 
+</P>
+<P>LAMMPS can create XTC files directly (via &quot;dump xtc&quot;)
+which is GROMACS file format which can also be read by <A HREF="http://www.ks.uiuc.edu/Research/vmd">VMD</A>
+for visualization. See the <A HREF="dump.html">dump</A> command for
+more information on XTC files. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_12"></A>4.12 Non-orthogonal simulation
+boxes 
+</H4>
+<P>By default, LAMMPS uses an orthogonal simulation box to encompass
+the particles. The <A HREF="boundary.html">boundary</A> command sets
+the boundary conditions of the box (periodic, non-periodic, etc). If
+the box size is xprd by yprd by zprd then the 3 mutually orthogonal
+edge vectors of an orthogonal simulation box are a = (xprd,0,0), b =
+(0,yprd,0), and c = (0,0,zprd). 
+</P>
+<P>LAMMPS also allows non-orthogonal simulation boxes (triclinic
+symmetry) to be defined with 3 additional &quot;tilt&quot; parameters
+which change the edge vectors of the simulation box to be a =
+(xprd,0,0), b = (xy,yprd,0), and c = (xz,yz,zprd). The xy, xz, and yz
+parameters can be positive or negative. The simulation box must be
+periodic in both dimensions associated with a tilt factor. For
+example, if xz != 0.0, then the x and z dimensions must be periodic. 
+</P>
+<P>To avoid extremely tilted boxes (which would be computationally
+inefficient), no tilt factor can skew the box more than half the
+distance of the parallel box length, which is the 1st dimension in
+the tilt factor (x for xz). For example, if xlo = 2 and xhi = 12,
+then the x box length is 10 and the xy tilt factor must be between -5
+and 5. Similarly, both xz and yz must be between -(xhi-xlo)/2 and
++(yhi-ylo)/2. Note that this is not a limitation, since if the
+maximum tilt factor is 5 (as in this example), then configurations
+with tilt = ..., -15, -5, 5, 15, 25, ... are all equivalent. 
+</P>
+<P>You tell LAMMPS to use a non-orthogonal box when the simulation
+box is defined. This happens in one of 3 ways. If the <A HREF="create_box.html">create_box</A>
+command is used with a region of style <I>prism</I>, then a
+non-orthogonal domain is setup. See the <A HREF="region.html">region</A>
+command for details. If the <A HREF="read_data.html">read_data</A>
+command is used to define the simulation box, and the header of the
+data file contains a line with the &quot;xy xz yz&quot; keyword, then
+a non-orthogonal domain is setup. See the <A HREF="read_data.html">read_data</A>
+command for details. Finally, if the <A HREF="read_restart.html">read_restart</A>
+command reads a restart file which was written from a simulation
+using a triclinic box, then a non-orthogonal box will be enabled for
+the restarted simulation. 
+</P>
+<P>Note that you can define a non-orthogonal box with all 3 tilt
+factors = 0.0, so that it is initially orthogonal. This is necessary
+if the box will become non-orthogonal. Alternatively, you can use the
+<A HREF="change_box.html">change_box</A> command to convert a
+simulation box from orthogonal to non-orthogonal and vice versa. 
+</P>
+<P>One use of non-orthogonal boxes is to model solid-state crystals
+with triclinic symmetry. The <A HREF="lattice.html">lattice</A>
+command can be used with non-orthogonal basis vectors to define a
+lattice that will tile a non-orthogonal simulation box via the
+<A HREF="create_atoms.html">create_atoms</A> command. Note that while
+the box edge vectors a,b,c cannot be arbitrary vectors (e.g. a must
+be aligned with the x axis), it is possible to rotate any crystal's
+basis vectors so that they meet these restrictions. 
+</P>
+<P>A second use of non-orthogonal boxes is to shear a bulk solid to
+study the response of the material. The <A HREF="fix_deform.html">fix
+deform</A> command can be used for this purpose. It allows dynamic
+control of the xy, xz, and yz tilt factors as a simulation runs. 
+</P>
+<P>Another use of non-orthogonal boxes is to perform non-equilibrium
+MD (NEMD) simulations, as discussed in the next section. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_13"></A>4.13 NEMD simulations 
+</H4>
+<P>Non-equilibrium molecular dynamics or NEMD simulations are
+typically used to measure a fluid's rheological properties such as
+viscosity. In LAMMPS, such simulations can be performed by first
+setting up a non-orthogonal simulation box (see the preceding Howto
+section). 
+</P>
+<P>A shear strain can be applied to the simulation box at a desired
+strain rate by using the <A HREF="fix_deform.html">fix deform</A>
+command. The <A HREF="fix_nvt_sllod.html">fix nvt/sllod</A> command
+can be used to thermostat the sheared fluid and integrate the SLLOD
+equations of motion for the system. Fix nvt/sllod uses <A HREF="compute_temp_deform.html">compute
+temp/deform</A> to compute a thermal temperature by subtracting out
+the streaming velocity of the shearing atoms. The velocity profile or
+other properties of the fluid can be monitored via the <A HREF="fix_ave_spatial.html">fix
+ave/spatial</A> command. 
+</P>
+<P>As discussed in the previous section on non-orthogonal simulation
+boxes, the amount of tilt or skew that can be applied is limited by
+LAMMPS for computational efficiency to be 1/2 of the parallel box
+length. However, <A HREF="fix_deform.html">fix deform</A> can
+continuously strain a box by an arbitrary amount. As discussed in the
+<A HREF="fix_deform.html">fix deform</A> command, when the tilt value
+reaches a limit, the box is re-shaped to the opposite limit which is
+an equivalent tiling of periodic space. The strain rate can then
+continue to change as before. In a long NEMD simulation these box
+re-shaping events may occur many times. 
+</P>
+<P>In a NEMD simulation, the &quot;remap&quot; option of <A HREF="fix_deform.html">fix
+deform</A> should be set to &quot;remap v&quot;, since that is what
+<A HREF="fix_nvt_sllod.html">fix nvt/sllod</A> assumes to generate a
+velocity profile consistent with the applied shear strain rate. 
+</P>
+<P>An alternative method for calculating viscosities is provided via
+the <A HREF="fix_viscosity.html">fix viscosity</A> command. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_14"></A>4.14 Extended spherical and
+aspherical particles 
+</H4>
+<P>Typical MD models treat atoms or particles as point masses.
+Sometimes, however, it is desirable to have a model with finite-size
+particles such as spherioids or aspherical ellipsoids. The difference
+is that such particles have a moment of inertia, rotational energy,
+and angular momentum. Rotation is induced by torque from interactions
+with other particles. 
+</P>
+<P>LAMMPS has several options for running simulations with these
+kinds of particles. The following aspects are discussed in turn: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">atom styles 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">pair potentials 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">time integration 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">computes, thermodynamics, and dump
+	output 
+	</P>
+	<LI><P>rigid bodies composed of extended particles 
+	</P>
+</UL>
+<H5 CLASS="western">Atom styles 
+</H5>
+<P>There are 3 <A HREF="atom_style.html">atom styles</A> that allow
+for definition of finite-size particles: granular, dipole, ellipsoid.
+</P>
+<P>Granular particles are spheriods and each particle can have a
+unique diameter and mass (or density). These particles store an
+angular velocity (omega) and can be acted upon by torque. 
+</P>
+<P>Dipolar particles are typically spheriods with a point dipole and
+each particle type has a diamater and mass, set by the <A HREF="shape.html">shape</A>
+and <A HREF="mass.html">mass</A> commands. These particles store an
+angular velocity (omega) and can be acted upon by torque. They also
+store an orientation for the point dipole (mu) which has a length set
+by the <A HREF="dipole.html">dipole</A> command. The <A HREF="set.html">set</A>
+command can be used to initialize the orientation of dipole moments. 
+</P>
+<P>Ellipsoid particles are aspherical. Each particle type has an
+ellipsoidal shape and mass, defined by the <A HREF="shape.html">shape</A>
+and <A HREF="mass.html">mass</A> commands. These particles store an
+angular momentum and their orientation (quaternion), and can be acted
+upon by torque. They do not store an angular velocity (omega), which
+can be in a different direction than angular momentum, rather they
+compute it as needed. Ellipsoidal particles can also store a dipole
+moment if an <A HREF="atom_style.html">atom_style hybrid ellipsoid
+dipole</A> is used. The <A HREF="set.html">set</A> command can be
+used to initialize the orientation of ellipsoidal particles and has a
+brief explanation of quaternions. 
+</P>
+<P>Note that if one of these atom styles is used (or multiple styles
+via the <A HREF="atom_style.html">atom_style hybrid</A> command), not
+all particles in the system are required to be finite-size or
+aspherical. For example, if the 3 shape parameters are set to the
+same value, the particle will be a spheroid rather than an ellipsoid.
+If the 3 shape parameters are all set to 0.0 or if the diameter is
+set to 0.0, it will be a point particle. If the dipole moment is set
+to zero, the particle will not have a point dipole associated with
+it. The pair styles used to compute pairwise interactions will
+typically compute the correct interaction in these simplified
+(cheaper) cases. <A HREF="pair_hybrid.html">Pair_style hybrid</A> can
+be used to insure the correct interactions are computed for the
+appropriate style of interactions. Likewise, using groups to
+partition particles (ellipsoid versus spheroid versus point
+particles) will allow you to use the appropriate time integrators and
+temperature computations for each class of particles. See the doc
+pages for various commands for details. 
+</P>
+<P>Also note that for <A HREF="dimension.html">2d simulations</A>,
+finite-size spheroids and ellipsoids are still treated as 3d
+particles, rather than as disks or ellipses. This means they have the
+same moment of inertia for a 3d extended object. When their
+temperature is coomputed, the correct degrees of freedom are used for
+rotation in a 2d versus 3d system. 
+</P>
+<H5 CLASS="western">Pair potentials 
+</H5>
+<P>When a system with extended particles is defined, the particles
+will only rotate and experience torque if the force field computes
+such interactions. These are the various <A HREF="pair_style.html">pair
+styles</A> that generate torque: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_gran.html">pair_style
+	gran/history</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_gran.html">pair_style
+	gran/hertzian</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_gran.html">pair_style
+	gran/no_history</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_dipole.html">pair_style
+	dipole/cut</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_gayberne.html">pair_style
+	gayberne</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="pair_resuared.html">pair_style
+	resquared</A> 
+	</P>
+	<LI><P><A HREF="pair_lubricate.html">pair_style lubricate</A> 
+	</P>
+</UL>
+<P>The <A HREF="pair_gran.html">granular pair styles</A> are used
+with <A HREF="atom_style.html">atom_style granular</A>. The <A HREF="pair_dipole.html">dipole
+pair style</A> is used with <A HREF="atom_style.html">atom_style
+dipole</A>. The <A HREF="pair_gayberne.html">GayBerne</A> and
+<A HREF="pair_resquared.html">REsquared</A> potentials require
+particles have a <A HREF="shape.html">shape</A> and are designed for
+<A HREF="atom_style.html">ellipsoidal particles</A>. The <A HREF="pair_lubricate.html">lubrication
+potential</A> requires that particles have a <A HREF="shape.html">shape</A>.
+It can currently only be used with extended spherical particles. 
+</P>
+<H5 CLASS="western">Time integration 
+</H5>
+<P>There are 3 fixes that perform time integration on extended
+spherical particles, meaning the integrators update the rotational
+orientation and angular velocity or angular momentum of the
+particles: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nve_sphere.html">fix
+	nve/sphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nvt_sphere.html">fix
+	nvt/sphere</A> 
+	</P>
+	<LI><P><A HREF="fix_npt_sphere.html">fix npt/sphere</A> 
+	</P>
+</UL>
+<P>Likewise, there are 3 fixes that perform time integration on
+extended aspherical particles: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nve_asphere.html">fix
+	nve/asphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nvt_asphere.html">fix
+	nvt/asphere</A> 
+	</P>
+	<LI><P><A HREF="fix_npt_asphere.html">fix npt/asphere</A> 
+	</P>
+</UL>
+<P>The advantage of these fixes is that those which thermostat the
+particles include the rotational degrees of freedom in the
+temperature calculation and thermostatting. Other thermostats can be
+used with fix nve/sphere or fix nve/asphere, such as fix langevin or
+fix temp/berendsen, but those thermostats only operate on the
+translational kinetic energy of the extended particles. 
+</P>
+<P>Note that for mixtures of point and extended particles, you should
+only use these integration fixes on <A HREF="group.html">groups</A>
+which contain extended particles. 
+</P>
+<H5 CLASS="western">Computes, thermodynamics, and dump output 
+</H5>
+<P>There are 4 computes that calculate the temperature or rotational
+energy of extended spherical or aspherical particles: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_sphere.html">compute
+	temp/sphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_asphere.html">compute
+	temp/asphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_erotate_sphere.html">compute
+	erotate/sphere</A> 
+	</P>
+	<LI><P><A HREF="compute_erotate_asphere.html">compute
+	erotate/asphere</A> 
+	</P>
+</UL>
+<P>These include rotational degrees of freedom in their computation.
+If you wish the thermodynamic output of temperature or pressure to
+use one of these computes (e.g. for a system entirely composed of
+extended particles), then the compute can be defined and the
+<A HREF="thermo_modify.html">thermo_modify</A> command used. Note
+that by default thermodynamic quantities will be calculated with a
+temperature that only includes translational degrees of freedom. See
+the <A HREF="thermo_style.html">thermo_style</A> command for details.
+</P>
+<P>The <A HREF="dump.html">dump custom</A> command can output various
+attributes of extended particles, including the dipole moment (mu),
+the angular velocity (omega), the angular momentum (angmom), the
+quaternion (quat), and the torque (tq) on the particle. 
+</P>
+<H5 CLASS="western">Rigid bodies composed of extended particles 
+</H5>
+<P>The <A HREF="fix_rigid.html">fix rigid</A> command treats a
+collection of particles as a rigid body, computes its inertia tensor,
+sums the total force and torque on the rigid body each timestep due
+to forces on its constituent particles, and integrates the motion of
+the rigid body. 
+</P>
+<P>(NOTE: the feature described in the following paragraph has not
+yet been released. It will be soon.) 
+</P>
+<P>If any of the constituent particles of a rigid body are extended
+particles (spheroids or ellipsoids), then their contribution to the
+inertia tensor of the body is different than if they were point
+particles. This means the rotational dynamics of the rigid body will
+be different. Thus a model of a dimer is different if the dimer
+consists of two point masses versus two extended sphereoids, even if
+the two particles have the same mass. Extended particles that
+experience torque due to their interaction with other particles will
+also impart that torque to a rigid body they are part of. 
+</P>
+<P>See the &quot;fix rigid&quot; command for example of complex
+rigid-body models it is possible to define in LAMMPS. 
+</P>
+<P>Note that the <A HREF="fix_shake.html">fix shake</A> command can
+also be used to treat 2, 3, or 4 particles as a rigid body, but it
+always assumes the particles are point masses. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_15"></A>4.15 Output from LAMMPS
+(thermo, dumps, computes, fixes, variables) 
+</H4>
+<P>There are four basic kinds of LAMMPS output: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="thermo_style.html">Thermodynamic
+	output</A>, which is a list of quantities printed every few
+	timesteps to the screen and logfile. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="dump.html">Dump files</A>,
+	which contain snapshots of atoms and various per-atom values and are
+	written at a specified frequency. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Certain fixes can output
+	user-specified quantities to files: <A HREF="fix_ave_time.html">fix
+	ave/time</A> for time averaging, <A HREF="fix_ave_spatial.html">fix
+	ave/spatial</A> for spatial averaging, and <A HREF="fix_print.html">fix
+	print</A> for single-line output of <A HREF="variable.html">variables</A>.
+	Fix print can also output to the screen. 
+	</P>
+	<LI><P><A HREF="restart.html">Restart files</A>. 
+	</P>
+</UL>
+<P>A simulation prints one set of thermodynamic output and
+(optionally) restart files. It can generate any number of dump files
+and fix output files, depending on what <A HREF="dump.html">dump</A>
+and <A HREF="fix.html">fix</A> commands you specify. 
+</P>
+<P>As discussed below, LAMMPS gives you a variety of ways to
+determine what quantities are computed and printed when the
+thermodynamics, dump, or fix commands listed above perform output.
+Throughout this discussion, note that users can also <A HREF="Section_modify.html">add
+their own computes and fixes to LAMMPS</A> which can then generate
+values that can then be output with these commands. 
+</P>
+<P>The following sub-sections discuss different LAMMPS command
+related to output and the kind of data they operate on and produce: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#global">Global/per-atom/local
+	data</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#scalar">Scalar/vector/array
+	data</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#thermo">Thermodynamic
+	output</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#dump">Dump file output</A>
+		</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#fixoutput">Fixes that
+	write output files</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#computeoutput">Computes
+	that process output quantities</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#fixoutput">Fixes that
+	process output quantities</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#compute">Computes that
+	generate values to output</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#fix">Fixes that generate
+	values to output</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="#variable">Variables that
+	generate values to output</A> 
+	</P>
+	<LI><P><A HREF="#table">Summary table of output options and data
+	flow between commands</A> 
+	</P>
+</UL>
+<H5 CLASS="western"><A NAME="global"></A>Global/per-atom/local data 
+</H5>
+<P>Various output-related commands work with three different styles
+of data: global, per-atom, or local. A global datum is one or more
+system-wide values, e.g. the temperature of the system. A per-atom
+datum is one or more values per atom, e.g. the kinetic energy of each
+atom. Local datums are calculated by each processor based on the
+atoms it owns, but there may be zero or more per atom, e.g. a list of
+bond distances. 
+</P>
+<H5 CLASS="western"><A NAME="scalar"></A>Scalar/vector/array data 
+</H5>
+<P>Global, per-atom, and local datums can each come in three kinds: a
+single scalar value, a vector of values, or a 2d array of values. The
+doc page for a &quot;compute&quot; or &quot;fix&quot; or &quot;variable&quot;
+that generates data will specify both the style and kind of data it
+produces, e.g. a per-atom vector. 
+</P>
+<P>When a quantity is accessed, as in many of the output commands
+discussed below, it can be referenced via the following bracket
+notation, where ID in this case is the ID of a compute. The leading
+&quot;c_&quot; would be replaced by &quot;f_&quot; for a fix, or &quot;v_&quot;
+for a variable: 
+</P>
+<CENTER>
+	<TABLE BORDER=1 CELLPADDING=3 CELLSPACING=2>
+		<TR>
+			<TD>
+				<P>c_ID 
+				</P>
+			</TD>
+			<TD>
+				<P>entire scalar, vector, or array</P>
+			</TD>
+		</TR>
+		<TR>
+			<TD>
+				<P>c_ID[I] 
+				</P>
+			</TD>
+			<TD>
+				<P>one element of vector, one column of array</P>
+			</TD>
+		</TR>
+		<TR>
+			<TD>
+				<P>c_ID[I][J] 
+				</P>
+			</TD>
+			<TD>
+				<P>one element of array 
+				</P>
+			</TD>
+		</TR>
+	</TABLE>
+</CENTER>
+<P>In other words, using one bracket reduces the dimension of the
+data once (vector -&gt; scalar, array -&gt; vector). Using two
+brackets reduces the dimension twice (array -&gt; scalar). Thus a
+command that uses scalar values as input can typically also process
+elements of a vector or array. 
+</P>
+<H5 CLASS="western"><A NAME="thermo"></A>Thermodynamic output 
+</H5>
+<P>The frequency and format of thermodynamic output is set by the
+<A HREF="thermo.html">thermo</A>, <A HREF="thermo_style.html">thermo_style</A>,
+and <A HREF="thermo_modify.html">thermo_modify</A> commands. The
+<A HREF="thermo_style.html">thermo_style</A> command also specifies
+what values are calculated and written out. Pre-defined keywords can
+be specified (e.g. press, etotal, etc). Three additional kinds of
+keywords can also be specified (c_ID, f_ID, v_name), where a <A HREF="compute.html">compute</A>
+or <A HREF="fix.html">fix</A> or <A HREF="variable.html">variable</A>
+provides the value to be output. In each case, the compute, fix, or
+variable must generate global values for input to the <A HREF="dump.html">thermo_style
+custom</A> command. 
+</P>
+<H5 CLASS="western"><A NAME="dump"></A>Dump file output 
+</H5>
+<P>Dump file output is specified by the <A HREF="dump.html">dump</A>
+and <A HREF="dump_modify.html">dump_modify</A> commands. There are
+several pre-defined formats (dump atom, dump xtc, etc). 
+</P>
+<P>There is also a <A HREF="dump.html">dump custom</A> format where
+the user specifies what values are output with each atom. Pre-defined
+atom attributes can be specified (id, x, fx, etc). Three additional
+kinds of keywords can also be specified (c_ID, f_ID, v_name), where a
+<A HREF="compute.html">compute</A> or <A HREF="fix.html">fix</A> or
+<A HREF="variable.html">variable</A> provides the values to be
+output. In each case, the compute, fix, or variable must generate
+per-atom values for input to the <A HREF="dump.html">dump custom</A>
+command. 
+</P>
+<P>There is also a <A HREF="dump.html">dump local</A> format where
+the user specifies what local values to output. A pre-defined index
+keyword can be specified to enumuerate the local values. Two
+additional kinds of keywords can also be specified (c_ID, f_ID),
+where a <A HREF="compute.html">compute</A> or <A HREF="fix.html">fix</A>
+or <A HREF="variable.html">variable</A> provides the values to be
+output. In each case, the compute or fix must generate local values
+for input to the <A HREF="dump.html">dump local</A> command. 
+</P>
+<H5 CLASS="western"><A NAME="fixoutput"></A>Fixes that write output
+files 
+</H5>
+<P>Three fixes take various quantities as input and can write output
+files: <A HREF="fix_ave_time.html">fix ave/time</A>, <A HREF="fix_ave_spatial.html">fix
+ave/spatial</A>, and <A HREF="fix_print.html">fix print</A>. 
+</P>
+<P>The <A HREF="fix_ave_time.html">fix ave/time</A> command enables
+direct output to a file and/or time-averaging of global scalars or
+vectors. The user specifies one or more quantities as input. These
+can be global <A HREF="compute.html">compute</A> values, global <A HREF="fix.html">fix</A>
+values, or <A HREF="variable.html">variables</A> of any style except
+the atom style which produces per-atom values. Since a variable can
+refer to keywords used by the <A HREF="thermo_style.html">thermo_style
+custom</A> command (like temp or press) and individual per-atom
+values, a wide variety of quantities can be time averaged and/or
+output in this way. If the inputs are one or more scalar values, then
+the fix generate a global scalar or vector of output. If the inputs
+are one or more vector values, then the fix generates a global vector
+or array of output. The time-averaged output of this fix can also be
+used as input to other output commands. 
+</P>
+<P>The <A HREF="fix_ave_spatial.html">fix ave/spatial</A> command
+enables direct output to a file of spatial-averaged per-atom
+quantities like those output in dump files, within 1d layers of the
+simulation box. The per-atom quantities can be atom density (mass or
+number) or atom attributes such as position, velocity, force. They
+can also be per-atom quantities calculated by a <A HREF="compute.html">compute</A>,
+by a <A HREF="fix.html">fix</A>, or by an atom-style <A HREF="variable.html">variable</A>.
+The spatial-averaged output of this fix can also be used as input to
+other output commands. 
+</P>
+<P>The <A HREF="fix_ave_histo.html">fix ave/histo</A> command enables
+direct output to a file of histogrammed quantities, which can be
+global or per-atom or local quantities. The histogram output of this
+fix can also be used as input to other output commands. 
+</P>
+<P>The <A HREF="fix_print.html">fix print</A> command can generate a
+line of output written to the screen and log file or to a separate
+file, periodically during a running simulation. The line can contain
+one or more <A HREF="variable.html">variable</A> values for any style
+variable except the atom style). As explained above, variables
+themselves can contain references to global values generated by
+<A HREF="thermo_style.html">thermodynamic keywords</A>, <A HREF="compute.html">computes</A>,
+<A HREF="fix.html">fixes</A>, or other <A HREF="variable.html">variables</A>,
+or to per-atom values for a specific atom. Thus the <A HREF="fix_print.html">fix
+print</A> command is a means to output a wide variety of quantities
+separate from normal thermodynamic or dump file output. 
+</P>
+<H5 CLASS="western"><A NAME="computeoutput"></A>Computes that process
+output quantities 
+</H5>
+<P>The <A HREF="compute_reduce.html">compute reduce</A> and <A HREF="compute_reduce.html">compute
+reduce/region</A> commands take one or more vector quantities as
+inputs and &quot;reduce&quot; them (sum, min, max, ave) to scalar
+quantities. These are produced as output values which can be used as
+input to other output commands. 
+</P>
+<P>The <A HREF="compute_property_atom.html">compute property/atom</A>
+command takes a list of one or more pre-defined atom attributes (id,
+x, fx, etc) and stores the values in a per-atom vector or array.
+These are produced as output values which can be used as input to
+other output commands. The list of atom attributes is the same as for
+the <A HREF="dump.html">dump custom</A> command. 
+</P>
+<P>The <A HREF="compute_property_local.html">compute property/local</A>
+command takes a list of one or more pre-defined local attributes
+(bond info, angle info, etc) and stores the values in a local vector
+or array. These are produced as output values which can be used as
+input to other output commands. 
+</P>
+<H5 CLASS="western"><A NAME="fixoutput1"></A>Fixes that process
+output quantities 
+</H5>
+<P>The <A HREF="fix_ave_atom.html">fix ave/atom</A> command performs
+time-averaging of per-atom vectors. The per-atom quantities can be
+atom attributes such as position, velocity, force. They can also be
+per-atom quantities calculated by a <A HREF="compute.html">compute</A>,
+by a <A HREF="fix.html">fix</A>, or by an atom-style <A HREF="variable.html">variable</A>.
+The time-averaged per-atom output of this fix can be used as input to
+other output commands. 
+</P>
+<H5 CLASS="western"><A NAME="compute"></A>Computes that generate
+values to output 
+</H5>
+<P>Every <A HREF="compute.html">compute</A> in LAMMPS produces either
+global or per-atom or local values. The values can be scalars or
+vectors or arrays of data. These values can be output using the other
+commands described in this section. The doc page for each compute
+command describes what it produces. Computes that produce per-atom or
+local values have the word &quot;atom&quot; or &quot;local&quot; in
+their style name. Computes without the word &quot;atom&quot; or
+&quot;local&quot; produce global values. 
+</P>
+<H5 CLASS="western"><A NAME="fix"></A>Fixes that generate values to
+output 
+</H5>
+<P>Some <A HREF="fix.html">fixes</A> in LAMMPS produces either global
+or per-atom or local values which can be accessed by other commands.
+The values can be scalars or vectors or arrays of data. These values
+can be output using the other commands described in this section. The
+doc page for each fix command tells whether it produces any output
+quantities and describes them. 
+</P>
+<H5 CLASS="western"><A NAME="variable"></A>Variables that generate
+values to output 
+</H5>
+<P>Every <A HREF="variable.html">variables</A> defined in an input
+script generates either a global scalar value or a per-atom vector
+(only atom-style variables) when it is accessed. The formulas used to
+define equal- and atom-style variables can contain references to the
+thermodynamic keywords and to global and per-atom data generated by
+computes, fixes, and other variables. The values generated by
+variables can be output using the other commands described in this
+section. 
+</P>
+<H5 CLASS="western"><A NAME="table"></A>Summary table of output
+options and data flow between commands 
+</H5>
+<P>This table summarizes the various commands that can be used for
+generating output from LAMMPS. Each command produces output data of
+some kind and/or writes data to a file. Most of the commands can take
+data from other commands as input. Thus you can link many of these
+commands together in pipeline form, where data produced by one
+command is used as input to another command and eventually written to
+the screen or to a file. Note that to hook two commands together the
+output and input data types must match, e.g. global/per-atom/local
+data and scalar/vector/array data. 
+</P>
+<P>Also note that, as described above, when a command takes a scalar
+as input, that could be an element of a vector or array. Likewise a
+vector input could be a column of an array. 
+</P>
+<CENTER>
+	<TABLE BORDER=1 CELLPADDING=3 CELLSPACING=2>
+		<TR>
+			<TD>
+				<P>Command</P>
+			</TD>
+			<TD>
+				<P>Input</P>
+			</TD>
+			<TD>
+				<P>Output</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="thermo_style.html">thermo_style custom</A></P>
+			</TD>
+			<TD>
+				<P>global scalars</P>
+			</TD>
+			<TD>
+				<P>screen, log file</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="dump.html">dump custom</A></P>
+			</TD>
+			<TD>
+				<P>per-atom vectors</P>
+			</TD>
+			<TD>
+				<P>dump file</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="dump.html">dump local</A></P>
+			</TD>
+			<TD>
+				<P>local vectors</P>
+			</TD>
+			<TD>
+				<P>dump file</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="fix_print.html">fix print</A></P>
+			</TD>
+			<TD>
+				<P>global scalar from variable</P>
+			</TD>
+			<TD>
+				<P>screen, file</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="print.html">print</A></P>
+			</TD>
+			<TD>
+				<P>global scalar from variable</P>
+			</TD>
+			<TD>
+				<P>screen</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="compute.html">computes</A></P>
+			</TD>
+			<TD>
+				<P>N/A</P>
+			</TD>
+			<TD>
+				<P>global/per-atom/local scalar/vector/array</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="fix.html">fixes</A></P>
+			</TD>
+			<TD>
+				<P>N/A</P>
+			</TD>
+			<TD>
+				<P>global/per-atom/local scalar/vector/array</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="variable.html">variables</A></P>
+			</TD>
+			<TD>
+				<P>global scalars, per-atom vectors</P>
+			</TD>
+			<TD>
+				<P>global scalar, per-atom vector</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="compute_reduce.html">compute reduce</A></P>
+			</TD>
+			<TD>
+				<P>global/per-atom/local vectors</P>
+			</TD>
+			<TD>
+				<P>global scalar/vector</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="compute_property_atom.html">compute property/atom</A></P>
+			</TD>
+			<TD>
+				<P>per-atom vectors</P>
+			</TD>
+			<TD>
+				<P>per-atom vector/array</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="compute_property_local.html">compute property/local</A></P>
+			</TD>
+			<TD>
+				<P>local vectors</P>
+			</TD>
+			<TD>
+				<P>local vector/array</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="fix_ave_atom.html">fix ave/atom</A></P>
+			</TD>
+			<TD>
+				<P>per-atom vectors</P>
+			</TD>
+			<TD>
+				<P>per-atom vector/array</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="fix_ave_time.html">fix ave/time</A></P>
+			</TD>
+			<TD>
+				<P>global scalars/vectors</P>
+			</TD>
+			<TD>
+				<P>global scalar/vector/array, file</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="fix_ave_spatial.html">fix ave/spatial</A></P>
+			</TD>
+			<TD>
+				<P>per-atom vectors</P>
+			</TD>
+			<TD>
+				<P>global array, file</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD>
+				<P><A HREF="fix_ave_histo.html">fix ave/histo</A></P>
+			</TD>
+			<TD>
+				<P>global/per-atom/local scalars and vectors</P>
+			</TD>
+			<TD>
+				<P>global array, file</P>
+			</TD>
+			<TD></TD>
+		</TR>
+		<TR>
+			<TD></TD>
+			<TD COLSPAN=3 VALIGN=TOP></TD>
+		</TR>
+	</TABLE>
+</CENTER>
+<HR>
+<H4 CLASS="western"><A NAME="4_16"></A>4.16 Thermostatting,
+barostatting, and computing temperature 
+</H4>
+<P>Thermostatting means controlling the temperature of particles in
+an MD simulation. Barostatting means controlling the pressure. Since
+the pressure includes a kinetic component due to particle velocities,
+both these operations require calculation of the temperature.
+Typically a target temperature (T) and/or pressure (P) is specified
+by the user, and the thermostat or barostat attempts to equilibrate
+the system to the requested T and/or P. 
+</P>
+<P>Temperature is computed as kinetic energy divided by some number
+of degrees of freedom (and the Boltzmann constant). Since kinetic
+energy is a function of particle velocity, there is often a need to
+distinguish between a particle's advection velocity (due to some
+aggregate motiion of particles) and its thermal velocity. The sum of
+the two is the particle's total velocity, but the latter is often
+what is wanted to compute a temperature. 
+</P>
+<P>LAMMPS has several options for computing temperatures, any of
+which can be used in thermostatting and barostatting. These <A HREF="compute.html">compute
+commands</A> calculate temperature, and the <A HREF="compute_pressure.html">compute
+pressure</A> command calculates pressure. 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp.html">compute
+	temp</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_sphere.html">compute
+	temp/sphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_asphere.html">compute
+	temp/asphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_com.html">compute
+	temp/com</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_deform.html">compute
+	temp/deform</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_partial.html">compute
+	temp/partial</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_profile.html">compute
+	temp/profile</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="compute_temp_ramp.html">compute
+	temp/ramp</A> 
+	</P>
+	<LI><P><A HREF="compute_temp_region.html">compute temp/region</A> 
+	</P>
+</UL>
+<P>All but the first 3 calculate velocity biases (i.e. advection
+velocities) that are removed when computing the thermal temperature.
+<A HREF="fix_temp_sphere.html">Fix temp/sphere</A> and <A HREF="fix_temp_asphere.html">fix
+temp/asphere</A> compute kinetic energy for extended particles that
+includes rotational degrees of freedom. They both allow, as an extra
+argument, which is another temperature compute that subtracts a
+velocity bias. This allows the translational velocity of extended
+spherical or aspherical particles to be adjusted in prescribed ways. 
+</P>
+<P>Thermostatting in LAMMPS is performed by <A HREF="fix.html">fixes</A>.
+Four thermostatting fixes are currently available: Nose-Hoover (nvt),
+Berendsen, Langevin, and direct rescaling (temp/rescale): 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nvt.html">fix nvt</A>
+		</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nvt_sphere.html">fix
+	nvt/sphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nvt_asphere.html">fix
+	nvt/asphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nvt_sllod.html">fix
+	nvt/sllod</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_temp_berendsen.html">fix
+	temp/berendsen</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_langevin.html">fix
+	langevin</A> 
+	</P>
+	<LI><P><A HREF="fix_temp_rescale.html">fix temp/rescale</A> 
+	</P>
+</UL>
+<P><A HREF="fix_nvt.html">Fix nvt</A> only thermostats the
+translational velocity of particles. <A HREF="fix_nvt_sllod.html">Fix
+nvt/sllod</A> also does this, except that it subtracts out a velocity
+bias due to a deforming box and integrates the SLLOD equations of
+motion. See the <A HREF="#4_13">NEMD simulations</A> section of this
+page for further details. <A HREF="fix_nvt_sphere.html">Fix
+nvt/sphere</A> and <A HREF="fix_nvt_asphere.html">fix nvt/asphere</A>
+thermostat not only translation velocities but also rotational
+velocities for spherical and aspherical particles. 
+</P>
+<P>Any of these fixes can use temperature computes that remove bias
+for two purposes: (a) computing the current temperature to compare to
+the requested target temperature, and (b) adjusting only the thermal
+temperature component of the particle's velocities. See the doc pages
+for the individual fixes and for the <A HREF="fix_modify.html">fix_modify</A>
+command for instructions on how to assign a temperature compute to a
+thermostatting fix. For example, you can apply a thermostat to only
+the x and z components of velocity by using it in conjunction with
+<A HREF="compute_temp_partial.html">compute temp/partial</A>. 
+</P>
+<P>IMPORTANT NOTE: Only the nvt fixes perform time integration,
+meaning they update the velocities and positions of particles due to
+forces and velocities respectively. The other thermostat fixes only
+adjust velocities; they do NOT perform time integration updates. Thus
+they should be used in conjunction with a constant NVE integration
+fix such as these: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nve.html">fix nve</A>
+		</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nve_sphere.html">fix
+	nve/sphere</A> 
+	</P>
+	<LI><P><A HREF="fix_nve_asphere.html">fix nve/asphere</A> 
+	</P>
+</UL>
+<P>Barostatting in LAMMPS is also performed by <A HREF="fix.html">fixes</A>.
+Two barosttating methods are currently available: Nose-Hoover (npt
+and nph) and Berendsen: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_npt.html">fix npt</A>
+		</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_npt_sphere.html">fix
+	npt/sphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_npt_asphere.html">fix
+	npt/asphere</A> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nph.html">fix nph</A>
+		</P>
+	<LI><P><A HREF="fix_press_berendsen.html">fix press/berendsen</A> 
+	</P>
+</UL>
+<P>The <A HREF="fix_npt.html">fix npt</A> commands include a
+Nose-Hoover thermostat and barostat. <A HREF="fix_nph.html">Fix nph</A>
+is just a Nose/Hoover barostat; it does no thermostatting. Both <A HREF="fix_nph.html">fix
+nph</A> and <A HREF="fix_press_berendsen.html">fix press/bernendsen</A>
+can be used in conjunction with any of the thermostatting fixes. 
+</P>
+<P>As with the thermostats, <A HREF="fix_npt.html">fix npt</A> and
+<A HREF="fix_nph.html">fix nph</A> only use translational motion of
+the particles in computing T and P and performing
+thermo/barostatting. <A HREF="fix_npt_sphere.html">Fix npt/sphere</A>
+and <A HREF="fix_npt_asphere.html">fix npt/asphere</A>
+thermo/barostat using not only translation velocities but also
+rotational velocities for spherical and aspherical particles. 
+</P>
+<P>All of the barostatting fixes use the <A HREF="compute_pressure.html">compute
+pressure</A> compute to calculate a current pressure. By default,
+this compute is created with a simple <A HREF="compute_temp.html">compute
+temp</A> (see the last argument of the <A HREF="compute_pressure.html">compute
+pressure</A> command), which is used to calculated the kinetic
+componenet of the pressure. The barostatting fixes can also use
+temperature computes that remove bias for the purpose of computing
+the kinetic componenet which contributes to the current pressure. See
+the doc pages for the individual fixes and for the <A HREF="fix_modify.html">fix_modify</A>
+command for instructions on how to assign a temperature or pressure
+compute to a barostatting fix. 
+</P>
+<P>IMPORTANT NOTE: As with the thermostats, the Nose/Hoover methods
+(<A HREF="fix_npt.html">fix npt</A> and <A HREF="fix_nph.html">fix
+nph</A>) perform time integration. <A HREF="fix_press_berendsen.html">Fix
+press/berendsen</A> does NOT, so it should be used with one of the
+constant NVE fixes or with one of the NVT fixes. 
+</P>
+<P>Finally, thermodynamic output, which can be setup via the
+<A HREF="thermo_style.html">thermo_style</A> command, often includes
+temperature and pressure values. As explained on the doc page for the
+<A HREF="thermo_style.html">thermo_style</A> command, the default T
+and P are setup by the thermo command itself. They are NOT the ones
+associated with any thermostatting or barostatting fix you have
+defined or with any compute that calculates a temperature or
+pressure. Thus if you want to view these values of T and P, you need
+to specify them explicitly via a <A HREF="thermo_style.html">thermo_style
+custom</A> command. Or you can use the <A HREF="thermo_modify.html">thermo_modify</A>
+command to re-define what temperature or pressure compute is used for
+default thermodynamic output. 
+</P>
+<HR>
+<H4 CLASS="western"><A NAME="4_17"></A>4.16 Walls 
+</H4>
+<P>Walls in an MD simulation are typically used to bound particle
+motion, i.e. to serve as a boundary condition. 
+</P>
+<P>Walls in LAMMPS can be of rough (made of particles) or idealized
+surfaces. Ideal walls can be smooth, generating forces only in the
+normal direction, or frictional, generating forces also in the
+tangential direction. 
+</P>
+<P>Rough walls, built of particles, can be created in various ways.
+The particles themselves can be generated like any other particle,
+via the <A HREF="lattice.html">lattice</A> and <A HREF="create_atoms.html">create_atoms</A>
+commands, or read in via the <A HREF="read_data.html">read_data</A>
+command. 
+</P>
+<P>Their motion can be constrained by many different commands, so
+that they do not move at all, move together as a group at constant
+velocity or in response to a net force acting on them, move in a
+prescribed fashion (e.g. rotate around a point), etc. Note that if a
+time integration fix like <A HREF="fix_nve.html">fix nve</A> or <A HREF="fix_nvt.html">fix
+nvt</A> is not used with the group that contains wall particles,
+their positions and velocities will not be updated. 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_aveforce.html">fix
+	aveforce</A> - set force on particles to average value, so they move
+	together 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_setforce.html">fix
+	setforce</A> - set force on particles to a value, e.g. 0.0 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_freeze.html">fix
+	freeze</A> - freeze particles for use as granular walls 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_nve_noforce.html">fix
+	nve/noforce</A> - advect particles by their velocity, but without
+	force 
+	</P>
+	<LI><P><A HREF="fix_move.html">fix move</A> - prescribe motion of
+	particles by a linear velocity, oscillation, rotation, variable 
+	</P>
+</UL>
+<P>The <A HREF="fix_move.html">fix move</A> command offers the most
+generality, since the motion of individual particles can be specified
+with <A HREF="variable.html">variable</A> formula which depends on
+time and/or the particle position. 
+</P>
+<P>For rough walls, it may be useful to turn off pairwise
+interactions between wall particles via the <A HREF="neigh_modify.html">neigh_modify
+exclude</A> command. 
+</P>
+<P>Rough walls can also be created by specifying frozen particles
+that do not move and do not interact with mobile particles, and then
+tethering other particles to the fixed particles, via a <A HREF="bond_style.html">bond</A>.
+The bonded particles do interact with other mobile particles. 
+</P>
+<P>Idealized walls can be specified via several fix commands. <A HREF="fix_wall_gran.html">Fix
+wall/gran</A> creates frictional walls for use with granular
+particles; all the other commands create smooth walls. 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_wall_reflect.html">fix
+	wall/reflect</A> - reflective flat walls 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_wall.html">fix
+	wall/lj93</A> - flat walls, with Lennard-Jones 9/3 potential 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_wall.html">fix
+	wall/lj126</A> - flat walls, with Lennard-Jones 12/6 potential 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_wall.html">fix
+	wall/colloid</A> - flat walls, with <A HREF="pair_colloid.html">pair_style
+	colloid</A> potential 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_wall.html">fix
+	wall/harmonic</A> - flat walls, with repulsive harmonic spring
+	potential 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><A HREF="fix_wall_region.html">fix
+	wall/region</A> - use region surface as wall 
+	</P>
+	<LI><P><A HREF="fix_wall_gran.html">fix wall/gran</A> - flat or
+	curved walls with <A HREF="pair_gran.html">pair_style granular</A>
+	potential 
+	</P>
+</UL>
+<P>The <I>lj93</I>, <I>lj126</I>, <I>colloid</I>, and <I>harmonic</I>
+styles all allow the flat walls to move with a constant velocity, or
+oscillate in time. The <A HREF="fix_wall_region.html">fix wall/region</A>
+command offers the most generality, since the region surface is
+treated as a wall, and the geometry of the region can be a simple
+primitive volume (e.g. a sphere, or cube, or plane), or a complex
+volume made from the union and intersection of primitive volumes.
+<A HREF="region.html">Regions</A> can also specify a volume
+&quot;interior&quot; or &quot;exterior&quot; to the specified
+primitive shape or <I>union</I> or <I>intersection</I>. <A HREF="region.html">Regions</A>
+can also be &quot;dynamic&quot; meaning they move with constant
+velocity, oscillate, or rotate. 
+</P>
+<P>The only frictional idealized walls currently in LAMMPS are flat
+or curved surfaces specified by the <A HREF="fix_wall_gran.html">fix
+wall/gran</A> command. At some point we plan to allow regoin surfaces
+to be used as frictional walls, as well as triangulated surfaces. 
+</P>
+<HR>
+<HR>
+<P><A NAME="Cornell"></A><B>(Cornell)</B> Cornell, Cieplak, Bayly,
+Gould, Merz, Ferguson, Spellmeyer, Fox, Caldwell, Kollman, JACS 117,
+5179-5197 (1995). 
+</P>
+<P><A NAME="Horn"></A><B>(Horn)</B> Horn, Swope, Pitera, Madura,
+Dick, Hura, and Head-Gordon, J Chem Phys, 120, 9665 (2004). 
+</P>
+<P><A NAME="MacKerell"></A><B>(MacKerell)</B> MacKerell, Bashford,
+Bellott, Dunbrack, Evanseck, Field, Fischer, Gao, Guo, Ha, et al, J
+Phys Chem, 102, 3586 (1998). 
+</P>
+<P><A NAME="Jorgensen"></A><B>(Jorgensen)</B> Jorgensen,
+Chandrasekhar, Madura, Impey, Klein, J Chem Phys, 79, 926 (1983). 
+</P>
+</BODY>
+</HTML>

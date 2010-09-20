@@ -1,0 +1,94 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100629;12270500">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western">fix check/timestep/gran command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ID group-ID check/timestep/gran nevery fraction_r fraction_h </PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">check/timestep/gran = style name
+	of this fix command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">nevery = estimate time-step size
+	accuracy every this many time-steps</P>
+	<LI><P STYLE="margin-bottom: 0in">fraction_r = warn in time-step
+	size exceeds this fraction of the Rayleigh time-step size</P>
+	<LI><P STYLE="margin-bottom: 0in">fraction_h = warn in time-step
+	size exceeds this fraction of the Hertz time-step size</P>
+</UL>
+<P><B>Examples:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ts_check all check/timestep/gran 1000 0.1 0.1</PRE><P>
+<B>Description:</B> 
+</P>
+<P>Periodically calculate estimations of the Rayleigh- and Hertz
+time-step sizes <FONT FACE="Standard Symbols L">d</FONT>t_r and <FONT FACE="Standard Symbols L">d</FONT>t_h
+for a granular system every 'nevery' time-steps. The user can specify
+two quantities 'fraction_r' and 'fraction_h'. A warning message is
+printed if the time-step size <FONT FACE="Standard Symbols L">D</FONT>t
+exceeds either of <FONT FACE="Standard Symbols L">d</FONT>t_r*
+fraction_r or <FONT FACE="Standard Symbols L">d</FONT>t_h*fraction_h.
+</P>
+<P>The former quantity is : 
+</P>
+<P><FONT FACE="Standard Symbols L">d</FONT>t_r
+=PI*r*sqrt(<FONT FACE="Liberation Serif, serif">rho</FONT>/Y)/(0.1631*<FONT FACE="Standard Symbols L">n</FONT>+0.8766),</P>
+<P>where <FONT FACE="Liberation Serif, serif">rho </FONT>is particle
+density, Y is the Young's modulus and is <FONT FACE="Standard Symbols L">n</FONT>
+Poisson's ratio. The latter is expressed by</P>
+<P><FONT FACE="Standard Symbols L">d</FONT>t_h
+=2.87*(m_eff²/(r_eff*Y_eff²*v_max)^0.2.</P>
+<P>The effective mass m_eff, the effective radius r_eff and the
+effective Young's modulus Y_eff are the same as defined in <A HREF="pair_gran.html">pair
+gran</A>. v_max is the maximum relative velocity, taking mesh
+movement into account. Please note that the Hertz criterion will also
+be used if you use a different granular pair style (e.g. Hooke).</P>
+<P>These formulas are evaluated every 'nevery' time-steps. Rayleigh
+time-step size <FONT FACE="Standard Symbols L">d</FONT>t_r is
+calculated for each particle in the simulation, and the minimum value
+is taken for further calculations. Hertz time-step size <FONT FACE="Standard Symbols L">d</FONT>t_h
+is estimated by testing a collision of each particle with itself
+using v_max as the assumed collision velocity. 
+</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P>This fix computes a 2-vector of forces, which can be accessed by
+various <A HREF="Section_howto.html#4_15">output commands</A>. The
+vector consists of the time-step size expressed as fraction of the
+Rayleigh and Hertz time-step sizes, respectively. No parameter of
+this fix can be used with the <I>start/stop</I> keywords of the <A HREF="run.html">run</A>
+command. 
+</P>
+<P><B>Restrictions:</B> none 
+</P>
+<P><B>Related commands:</B> 
+</P>
+<P><B>Default:</B> none 
+</P>
+</BODY>
+</HTML>

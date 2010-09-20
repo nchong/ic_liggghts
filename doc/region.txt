@@ -1,0 +1,269 @@
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+region command :h3
+
+[Syntax:]
+
+region ID style args keyword value ... :pre
+
+ID = user-assigned name for the region :ulb,l
+style = {block} or {cone} or {cylinder} or {plane} or {prism} or {sphere} or {union} or {intersect} :l
+  {block} args = xlo xhi ylo yhi zlo zhi
+    xlo,xhi,ylo,yhi,zlo,zhi = bounds of block in all dimensions (distance units)
+  {cone} args = dim c1 c2 radlo radhi lo hi
+    dim = {x} or {y} or {z} = axis of cone
+    c1,c2 = coords of cone axis in other 2 dimensions (distance units)
+    radlo,radhi = cone radii at lo and hi end (distance units)
+    lo,hi = bounds of cone in dim (distance units)
+  {cylinder} args = dim c1 c2 radius lo hi
+    dim = {x} or {y} or {z} = axis of cylinder
+    c1,c2 = coords of cylinder axis in other 2 dimensions (distance units)
+    radius = cylinder radius (distance units)
+    lo,hi = bounds of cylinder in dim (distance units)
+  {plane} args = px py pz nx ny nz
+    px,py,pz = point on the plane (distance units)
+    nx,ny,nz = direction normal to plane (distance units)
+  {prism} args = xlo xhi ylo yhi zlo zhi xy xz yz
+    xlo,xhi,ylo,yhi,zlo,zhi = bounds of untilted prism (distance units)
+    xy = distance to tilt y in x direction (distance units)
+    xz = distance to tilt z in x direction (distance units)
+    yz = distance to tilt z in y direction (distance units)
+  {sphere} args = x y z radius
+    x,y,z = center of sphere (distance units)
+    radius = radius of sphere (distance units)
+  {union} args = N reg-ID1 reg-ID2 ...
+    N = # of regions to follow, must be 2 or greater
+    reg-ID1,reg-ID2, ... = IDs of regions to join together
+  {intersect} args = N reg-ID1 reg-ID2 ...
+    N = # of regions to follow, must be 2 or greater
+    reg-ID1,reg-ID2, ... = IDs of regions to intersect :pre
+zero or more keyword/value pairs may be appended :l
+keyword = {side} or {units} or {vel} or {wiggle} or {rotate} :l
+  {side} value = {in} or {out}
+    {in} = the region is inside the specified geometry
+    {out} = the region is outside the specified geometry
+  {units} value = {lattice} or {box}
+    {lattice} = the geometry is defined in lattice units
+    {box} = the geometry is defined in simulation box units
+  {vel} args = Vx Vy Vz
+    Vx,Vy,Vz = components of velocity vector (velocity units)
+  {wiggle} args = Ax Ay Az period
+    Ax,Ay,Az = components of amplitude vector (distance units)
+    period = period of oscillation (time units)
+  {rotate} args = Px Py Pz Rx Ry Rz period
+    Px,Py,Pz = origin point of axis of rotation (distance units)
+    Rx,Ry,Rz = axis of rotation vector
+    period = period of rotation (time units) :pre
+:ule
+
+[Examples:]
+
+region 1 block -3.0 5.0 INF 10.0 INF INF
+region 2 sphere 0.0 0.0 0.0 5 side out
+region void cylinder y 2 3 5 -5.0 EDGE units box
+region 1 prism 0 10 0 10 0 10 2 0 0
+region outside union 4 side1 side2 side3 side4
+region 2 sphere 0.0 0.0 0.0 5 side out wiggle 1 1 0 10 :pre
+
+[Description:]
+
+This command defines a geometric region of space.  Various other
+commands use regions.  For example, the region can be filled with
+atoms via the "create_atoms"_create_atoms.html command.  Or the atoms
+in the region can be identified as a group via the "group"_group.html
+command, or deleted via the "delete_atoms"_delete_atoms.html command.
+Or the surface of the region can be used as a boundary wall via the
+"fix wall/region"_fix_wall_region.html command.
+
+Normally, regions in LAMMPS are "static", meaning their geometric
+extent does not change with time.  If the {vel} or {wiggle} or
+{rotate} keyword is used, as described below, the region becomes
+"dynamic", meaning it's location or orientation changes with time.
+This may be useful, for example, when thermostatting a region, via the
+compute temp/region command, or when the fix wall/region command uses
+a region surface as a bounding wall on particle motion, i.e. a
+rotating container.
+
+The lo/hi values for {block} or {cone} or {cylinder} or {prism} styles
+can be specified as EDGE or INF.  EDGE means they extend all the way
+to the global simulation box boundary.  Note that this is the current
+box boundary; if the box changes size during a simulation, the region
+does not.  INF means a large negative or positive number (1.0e20), so
+it should encompass the simulation box even if it changes size.  If a
+region is defined before the simulation box has been created (via
+"create_box"_create_box.html or "read_data"_read_data.html or
+"read_restart"_read_restart.html commands), then an EDGE or INF
+parameter cannot be used.  For a {prism} region, a non-zero tilt
+factor in any pair of dimensions cannot be used if both the lo/hi
+values in either of those dimensions are INF.  E.g. if the xy tilt is
+non-zero, then xlo and xhi cannot both be INF, nor can ylo and yhi.
+
+IMPORTANT NOTE: Regions in LAMMPS do not get wrapped across periodic
+boundaries, as specified by the "boundary"_boundary.html command.  For
+example, a spherical region that is defined so that it overlaps a
+periodic boundary is not treated as 2 half-spheres, one on either side
+of the simulation box.
+
+IMPORTANT NOTE: Regions in LAMMPS are always 3d geometric objects,
+regardless of whether the "dimension"_dimension.html of a simulation
+is 2d or 3d.  Thus when using regions in a 2d simulation, you should
+be careful to define the region so that its intersection with the 2d
+x-y plane of the simulation is the 2d geometric object you want.
+
+For style {cone}, an axis-aligned cone is defined which is like a
+{cylinder} except that two different radii (one at each end) can be
+defined.  Either of the radii (but not both) can be 0.0.
+
+For style {cone} and {cylinder}, the c1,c2 params are coordinates in
+the 2 other dimensions besides the cylinder axis dimension.  For dim =
+x, c1/c2 = y/z; for dim = y, c1/c2 = x/z; for dim = z, c1/c2 = x/y.
+Thus the third example above specifies a cylinder with its axis in the
+y-direction located at x = 2.0 and z = 3.0, with a radius of 5.0, and
+extending in the y-direction from -5.0 to the upper box boundary.
+
+For style {plane}, a plane is defined which contain the point
+(px,py,pz) and has a normal vector (nx,ny,nz).  The normal vector does
+not have to be of unit length.  The "inside" of the plane is the
+half-space in the direction of the normal vector; see the discussion
+of the {side} option below.
+
+For style {prism}, a parallelepiped is defined (it's too hard to spell
+parallelepiped in an input script!).  Think of the parallelepiped as
+initially an axis-aligned orthogonal box with the same xyz lo/hi
+parameters as region style {block} would define.  Then, while holding
+the (xlo,ylo,zlo) corner point fixed, the box is "skewed" or "tilted"
+in 3 directions.  First, for the lower xy face of the box, the {xy}
+factor is how far the upper y edge is shifted in the x direction.  The
+lower xy face is now a parallelogram.  A plus or minus value for {xy}
+can be specified; 0.0 means no tilt.  Then, the upper xy face of the
+box is translated in the x and y directions by {xz} and {yz}.  This
+results in a parallelepiped whose "origin" is at (xlo,ylo,zlo) with 3
+edge vectors starting from its origin given by a = (xhi-xlo,0,0); b =
+(xy,yhi-ylo,0); c = (xz,yz,zhi-zlo).
+
+A prism region used with the "create_box"_create_box.html command must
+have tilt factors (xy,xz,yz) that do not skew the box more than half
+the distance of the parallel box length.  For example, if xlo = 2 and
+xhi = 12, then the x box length is 10 and the xy tilt factor must be
+between -5 and 5.  Similarly, both xz and yz must be between
+-(xhi-xlo)/2 and +(yhi-ylo)/2.  Note that this is not a limitation,
+since if the maximum tilt factor is 5 (as in this example), then
+configurations with tilt = ..., -15, -5, 5, 15, 25, ... are all
+equivalent.
+
+The {union} style creates a region consisting of the volume of all the
+listed regions combined.  The {intersect} style creates a region
+consisting of the volume that is common to all the listed regions.
+
+:line
+
+The {side} keyword determines whether the region is considered to be
+inside or outside of the specified geometry.  Using this keyword in
+conjunction with {union} and {intersect} regions, complex geometries
+can be built up.  For example, if the interior of two spheres were
+each defined as regions, and a {union} style with {side} = out was
+constructed listing the region-IDs of the 2 spheres, the resulting
+region would be all the volume in the simulation box that was outside
+both of the spheres.
+
+The {units} keyword determines the meaning of the distance units used
+to define the region for any argument above listed as having distance
+units.  It also affects the scaling of the velocity vector specfied
+with the {vel} keyword, the amplitude vector specified with the
+{wiggle} keyword, and the rotation point specified with the {rotate}
+keyword, since they each involve a distance metric.
+
+A {box} value selects standard distance units as defined by the
+"units"_units.html command, e.g. Angstroms for units = real or metal.
+A {lattice} value means the distance units are in lattice spacings.
+The "lattice"_lattice.html command must have been previously used to
+define the lattice spacings which are used as follows:
+
+For style {block}, the lattice spacing in dimension x is applied to
+xlo and xhi, similarly the spacings in dimensions y,z are applied to
+ylo/yhi and zlo/zhi. :ulb,l
+
+For style {cone}, the lattice spacing in argument {dim} is applied to
+lo and hi.  The spacings in the two radial dimensions are applied to
+c1 and c2.  The two cone radii are scaled by the lattice
+spacing in the dimension corresponding to c1. :l
+
+For style {cylinder}, the lattice spacing in argument {dim} is applied
+to lo and hi.  The spacings in the two radial dimensions are applied
+to c1 and c2.  The cylinder radius is scaled by the lattice
+spacing in the dimension corresponding to c1. :l
+
+For style {plane}, the lattice spacing in dimension x is applied to
+px and nx, similarly the spacings in dimensions y,z are applied to
+py/ny and pz/nz. :l
+
+For style {prism}, the lattice spacing in dimension x is applied to
+xlo and xhi, similarly for ylo/yhi and zlo/zhi.  The lattice spacing
+in dimension x is applied to xy and xz, and the spacing in dimension y
+to yz. :l
+
+For style {sphere}, the lattice spacing in dimensions x,y,z are
+applied to the sphere center x,y,z.  The spacing in dimension x is
+applied to the sphere radius. :l,ule
+
+:line
+
+If the {vel} or {wiggle} or {rotate} keywords are used, the region
+is "dynamic", meaning its location or orientation changes with time.
+No more than one of these keywords can be used at a time.  These
+keywords cannot be used with a {union} or {intersect} style region.
+Instead, the keywords should be used to define the individual
+sub-regions of the {union} or {intersect} region.  Normally, each
+sub-region should be "dynamic" in the same manner (e.g. rotate around
+the same point), though this is not a requirement.
+
+The {vel} style moves the region at a constant velocity, so that its
+position {X} = (x,y,z) as a function of time is given in vector
+notation as
+
+X(t) = X0 + V * delta :pre
+
+where {X0} = (x0,y0,z0) is its position at the time the region is
+specified, {V} is the specified velocity vector with components
+(Vx,Vy,Vz), and {delta} is the time elapsed since the region was
+specified. 
+
+The {wiggle} style moves the region in an oscillatory fashion, so that
+its position {X} = (x,y,z) as a function of time is given in vector
+notation as
+
+X(t) = X0 + A sin(omega*delta) :pre
+
+where {X0} = (x0,y0,z0) is its position at the time the region is
+specified, {A} is the specified amplitude vector with components
+(Ax,Ay,Az), {omega} is 2 PI / {period}, and {delta} is the time
+elapsed since the region was specified.
+
+The {rotate} style rotates the region around a rotation axis {R} =
+(Rx,Ry,Rz) that goes thru a point {P} = (Px,Py,Pz).  The {period} of
+the rotation is also specified.  The direction of rotation for the
+region around the rotation axis is consistent with the right-hand
+rule: if your right-hand thumb points along {R}, then your fingers
+wrap around the axis in the direction of rotation.
+
+[Restrictions:]
+
+A prism cannot be of 0.0 thickness in any dimension; use a small z
+thickness for 2d simulations.  For 2d simulations, the xz and yz
+parameters must be 0.0.
+
+[Related commands:]
+
+"lattice"_lattice.html, "create_atoms"_create_atoms.html,
+"delete_atoms"_delete_atoms.html, "group"_group.html
+
+[Default:]
+
+The option defaults are side = in, units = lattice, and no
+velocity, wiggling, or rotation.

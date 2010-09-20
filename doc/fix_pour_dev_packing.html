@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100629;10390800">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western">fix pour/dev/packing command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ID group-ID pour/dev target_speficier target seed keyword values ... </PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">pour/dev/packing = style name of
+	this fix command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">seed = random # seed (positive
+	integer) 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">one or more keyword/value pairs
+	may be appended to args 
+	</P>
+	<LI><P>keyword = <I>distributiontemplate </I><SPAN STYLE="font-style: normal">and</SPAN>
+	<I>region</I> or <I>vol</I> or <I>vel</I> or <I>regionexempts</I></P>
+	<PRE>  <I>distributiontemplate</I> value = dist-fix-ID
+    dist-fix-ID = ID of fix of type particledistribution/discrete to be used
+  <I>region</I> value = region-ID
+    region-ID = ID of region to use as insertion volume
+  <I>regionexempts</I> values = n_exempts region-ID_1 region-ID_2 ...
+    n_exempts = number of regions to exempt from insertion volume
+    region-ID_i = ID of region # i to exempt from insertion volume
+  <I>vol</I> values = fraction Nattempt
+    fraction = desired volume fraction for filling insertion volume
+    Nattempt = max # of insertion attempts per atom
+  <I>vel</I> values (3d) = random_style vx_param1 vx_param2 vy_param1 vy_param2 vz
+  <I>vel</I> values (2d) = random_style vx_param1 vx_param2 vy
+        for style 'uniform': vx_param1/vy_param1,vx_param2/vy_param2 = lo,hi values for range of x velocities/y velocities for inserted particles (distance units)
+        for style 'gaussian': param1,param2 = mu,sigma values for range of x velocities/y velocities for inserted particles (distance units)
+    vz = z velocity (3d) assigned to inserted particles (velocity units)
+    vy = y velocity (2d) assigned to inserted particles (velocity units) </PRE>
+</UL>
+<P><B>Examples:</B> 
+</P>
+<PRE>fix		ins all pour/dev/packing 1 distributiontemplate pdd1 vol 0.2 30 region reg</PRE><P>
+<BR><BR>
+</P>
+<P><B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P>This LIGGGHTS command  fis not available in LAMMPS.</P>
+<P><B>Description:</B> 
+</P>
+<P>Insert particles into a granular run once within a specified
+region. This is useful for particle packing applications.</P>
+<P>This command must use the <I>distributiontemplate</I> keyword to
+refer to a fix of type <A HREF="fix_particledistribution_discrete.html">particledistribution/discrete</A>
+(defined by dist-fix-ID) that defines the properties of the particles
+to be inserted r the insertion. 
+</P>
+<P>Inserted particles are assigned the properties as defined by the
+fix <A HREF="fix_particledistribution_discrete.html">particledistribution/discrete</A>
+and are assigned to two groups: the default group &quot;all&quot; and
+the group specified in the fix pour command (which can also be
+&quot;all&quot;). 
+</P>
+<P>This command must use the <I>region</I> keyword to define an
+insertion volume. The specified region must have been previously
+defined with a <A HREF="region.html">region</A> command. It must be
+of type <I>block</I> or a z-axis <I>cylinder</I> and must be defined
+with side = <I>in</I>. The cylinder style of region can only be used
+with 3d simulations. With the optional <I>regionexempts</I> keyword,
+you can specify regions to exempt from the insertion region. These
+regions can be of any style (see <A HREF="region.html">region</A>
+command). Please note that the target volume fraction is still
+calculated using the whole insertion volume as specified by the
+<I>region</I> keyword.</P>
+<P>Particles are placed randomly inside the insertion volume.
+Insertions continue until the desired volume fraction or the
+specified number of insertion tries have been reached.</P>
+<P>All other keywords are optional with defaults as shown below. The
+<I>vel</I> option enables inserted particles to have a range of xy
+velocities. The specific values for a particular inserted particle
+will be chosen randomly where you can choose between <I>uniform</I>
+and <I>gaussian</I> random styles for <I>vx, vy (for 3d).</I> The <I>vz</I>
+or <I>vy</I> value for option <I>vel</I> assigns a z-velocity (3d) or
+y-velocity (2d) to each inserted particle. 
+</P>
+<P>The <I>vol</I> option specifies what volume fraction of the
+insertion volume will be filled with particles. Since inserted
+particles cannot overlap, the maximum volume fraction should be no
+higher than about 0.6 (for mono-disperese simulation). Each timestep
+particles are inserted, LAMMPS will make up to a total of M tries to
+insert the new particles without overlaps, where M = # of inserted
+particles * Nattempt. If LAMMPS is unsuccessful at completing all
+insertions, it prints a warning. 
+</P>
+<P>IMPORTANT NOTE: Be careful not to choose the insertion volume too
+small. Compared to the LAMMPS style fix pour command, the volume has
+to be larger because the particles are completely located within the
+insertion volume.</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P>Information about this fix is written to <A HREF="restart.html">binary
+restart files </A>. This means you can restart a pouring simulation,
+when the restart file was written in the middle of the pouring
+operation. 
+</P>
+<P>None of the <A HREF="fix_modify.html">fix_modify</A> options are
+relevant to this fix. No global scalar or vector or per-atom
+quantities are stored by this fix for access by various <A HREF="Section_howto.html#4_15">output
+commands</A>. No parameter of this fix can be used with the
+<I>start/stop</I> keywords of the <A HREF="run.html">run</A> command.
+This fix is not invoked during <A HREF="minimize.html">energy
+minimization</A>. 
+</P>
+<P><B>Restrictions:</B> 
+</P>
+<P>The specified insertion region cannot be a &quot;dynamic&quot;
+region, as defined by the <A HREF="region.html">region</A> command. 
+</P>
+<P><B>Related commands:</B> 
+</P>
+<P><A HREF="fix_deposit.html">fix_deposit</A>, <A HREF="region.html">region</A>
+, <A HREF="fix_particletemplate_sphere.html">fix_particletemplate_sphere</A>
+<A HREF="fix_particledistribution_discrete.html"><SPAN STYLE="font-weight: normal">fix_particledistribution_discrete</SPAN></A></P>
+<P><B>Default:</B> 
+</P>
+<P>The option defaults are vol = 0.25 50, vel = 0.0 0.0 0.0 0.0 0.0. 
+</P>
+</BODY>
+</HTML>

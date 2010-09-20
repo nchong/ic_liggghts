@@ -1,0 +1,96 @@
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+if command :h3
+
+[Syntax:]
+
+if value1 operator value2 then t1 t2 ... else e1 e2 ... :pre
+
+value1 = 1st value
+operator = "<" or "<=" or ">" or ">=" or "==" or "!="
+value2 = 2nd value
+then = required word
+t1,t2,...,tN = one or more LAMMPS commands to execute if condition is met, each enclosed in quotes
+else = optional argument
+e1,e2,...,eN = one or more LAMMPS commands to execute if condition is not met, each enclosed in quotes (optional arguments) :ul
+
+[Examples:]
+
+if $\{steps\} > 1000 then exit
+if $x <= $y then "print X is smaller = $x" else "print Y is smaller = $y"
+if $\{eng\} > 0.0 then "timestep 0.005"
+if $\{eng\} > $\{eng_previous\} then "jump file1" else "jump file2" :pre
+
+[Description:]
+
+This command provides an in-then-else capability within an input
+script.  Two values are numerically compared to each other and the
+result is TRUE or FALSE.  Note that as in the examples above, either
+of the two values can be variables, as defined by the
+"variable"_variable.html command, so that when the if command is
+executed, the variable(s) will be evaluated, which could calculate a
+user-defined formula that reflects the current state of the
+simulation.
+
+If the result of the if test is TRUE, then one or more commands (t1,
+t2, ..., tN) are executed.  If the result of the if test is FALSE and
+no optional "else" argument is included, then the if command does
+nothing.  If the result of the if test is FALSE and the optional
+"else" argument is included, then one or more commands (e1,
+e2, ..., eN) are executed.
+
+Each then or else command (t1, e1, etc) can be any valid LAMMPS input
+script command.  Each command should be enclosed in quotes, so it will
+be treated as a single argument, as in the examples above.
+
+Note that by using the line continuation character "&", the if command
+can be spread across many lines, though it is still a single
+command:
+
+if $a < $b then &
+  "print Minimum value = $a"
+  "run 1000" &
+else &      
+  "print Minimum value = $b" &
+  "minimize 0.001 0.001 1000 10000" :pre
+
+Note that if any executed comand is a bogus LAMMPS command, such as
+"exit" in the first example above, then executing the command will
+cause LAMMPS to halt.
+
+Note that by jumping to a label in the same input script, the if
+command can be used to break out of a loop.  See the "variable
+delete"_variable.html for info on how to delete the associated loop
+variable, so that it can be re-used later in the input script.
+
+Here is an example of a double loop which uses the if and
+"jump"_jump.html commands to break out of the inner loop when a
+condition is met, then continues iterating thru the outer loop.
+
+label	    loopa
+variable    a loop 5
+  label	    loopb
+  variable  b loop 5
+  print	    "A,B = $a,$b"
+  run       10000
+  if	    $b > 2 then "jump in.script break"
+  next	    b
+  jump	    in.script loopb
+label	    break
+variable    b delete :pre
+next	    a
+jump	    in.script loopa :pre
+
+[Restrictions:] none
+
+[Related commands:]
+
+"variable"_variable.html, "print"_print.html
+
+[Default:] none

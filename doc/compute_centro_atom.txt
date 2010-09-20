@@ -1,0 +1,68 @@
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+compute centro/atom command :h3
+
+[Syntax:]
+
+compute ID group-ID centro/atom :pre
+
+ID, group-ID are documented in "compute"_compute.html command
+centro/atom = style name of this compute command :ul
+
+[Examples:]
+
+compute 1 all centro/atom :pre
+
+[Description:]
+
+Define a computation that calculates the centro-symmetry parameter for
+each atom in the group.  In solid-state systems the centro-symmetry
+parameter is a useful measure of the local lattice disorder around an
+atom and can be used to characterize whether the atom is part of a
+perfect lattice, a local defect (e.g. a dislocation or stacking
+fault), or at a surface.
+
+The value of the centro-symmetry parameter will be 0.0 for atoms not
+in the specified compute group.
+
+This parameter is computed using the following formula from
+"(Kelchner)"_#Kelchner
+
+:c,image(Eqs/centro_symmetry.jpg)
+
+where the 12 nearest neighbors are found (for fcc lattices) and Ri and
+Ri+6 are the vectors from the central atom to the opposite pair of
+nearest neighbors.  Atoms not in the group are included in the 12
+neighbors used in this calculation.
+
+The neighbor list needed to compute this quantity is constructed each
+time the calculation is performed (e.g. each time a snapshot of atoms
+is dumped).  Thus it can be inefficient to compute/dump this quantity
+too frequently or to have multiple compute/dump commands, each with a
+{centro/atom} style.
+
+[Output info:]
+
+This compute calculates a per-atom vector, which can be accessed by
+any command that uses per-atom values from a compute as input.  See
+"this section"_Section_howto.html#4_15 for an overview of LAMMPS
+output options.
+
+[Restrictions:] none
+
+[Related commands:]
+
+"compute cna/atom"_compute_cna_atom.html
+
+[Default:] none
+
+:line
+
+:link(Kelchner)
+[(Kelchner)] Kelchner, Plimpton, Hamilton, Phys Rev B, 58, 11085 (1998).

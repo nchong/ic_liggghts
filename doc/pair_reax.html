@@ -1,0 +1,148 @@
+<HTML>
+<CENTER>M<A HREF = "http://lammps.sandia.gov">LAMMPS WWW Site</A> - <A HREF = "Manual.html">LAMMPS Documentation</A> - <A HREF = "Section_commands.html#comm">LAMMPS Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>pair_style reax command 
+</H3>
+<P><B>Syntax:</B>
+</P>
+<PRE>pair_style reax hbcut precision 
+</PRE>
+<UL><LI>hbcut = hydrogen-bond cutoff (distance units)
+<LI>precision = precision for charge equilibration 
+</UL>
+<P><B>Examples:</B>
+</P>
+<PRE>pair_style reax
+pair_style reax 10.0 1.0e-5
+pair_coeff * * ffield.reax 3 1 2 2 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>The pair style computes the ReaxFF potential of van Duin, Goddard and
+co-workers.  ReaxFF uses distance-dependent bond-order functions to
+represent the contributions of chemical bonding to the potential
+energy. There is more than one version of ReaxFF. The version implemented 
+in LAMMPS uses the functional forms documented in the
+supplemental information of the following paper: <A HREF = "#Chenoweth_2008">(Chenoweth et al.,
+ 2008)</A>. 
+</P>
+<P>LAMMPS requires that a file called ffield.reax be provided, containing the
+ReaxFF parameters for each atom type, bond type, etc. The format is identical to
+the ffield file used by van Duin and co-workers. The filename is also
+reuqired as an argument in the pair_coeff command. Any value other than
+ffield.reax will be rejected (see below).
+</P>
+<P>LAMMPS provides several different versions of ffield.reax
+in its potentials dir, each called potentials/ffield.reax.label.
+These are documented in potentials/README.reax.
+The default ffield.reax contains parameterizations for the following
+elements: C, H, O, N, S. You can use one of the other files in place of it, 
+or obtain a file from elsewhere.
+</P>
+<P>The <I>hbcut</I> and <I>precision</I> settings are optional arguments.  If
+neither is provided, default settings are used: <I>hbcut</I> = 10 (which is
+Angstroms in real units) and <I>precision</I> = 1.0e-6 (one part in 10^6).
+If you wish to override either of these defaults, then both settings
+must be specified.
+</P>
+<P>Use of this pair style requires that a charge be defined for every
+atom since the potential performs charge equilibration.  See the
+<A HREF = "atom_style.html">atom_style</A> and <A HREF = "read_data.html">read_data</A> commands
+for details on how to specify charges.
+</P>
+<P>The thermo variable <I>evdwl</I> stores the sum of all the ReaxFF potential
+energy contributions, with the exception of the Coulombic and charge
+equilibration contributions which are stored in the thermo variable
+<I>ecoul</I>.  The output of these quantities is controlled by the
+<A HREF = "thermo.html">thermo</A> command.
+</P>
+<P>Only a single pair_coeff command is used with the <I>reax</I> style which
+specifies a ReaxFF potential file with parameters for all needed
+elements.  These are mapped to LAMMPS atom types by specifying N
+additional arguments after the filename in the pair_coeff command,
+where N is the number of LAMMPS atom types:
+</P>
+<UL><LI>filename
+<LI>N indices = mapping of ReaxFF elements to atom types 
+</UL>
+<P>The specification of the filename and the mapping of LAMMPS atom types
+recognized by the ReaxFF is done differently than for other LAMMPS
+potentials, due to the non-portable difficulty of passing character
+strings (e.g. filename, element names) between C++ and Fortran.
+</P>
+<P>The filename has to be "ffield.reax" and it has to exist in the
+directory you are running LAMMPS in.  This means you cannot prepend a
+path to the file in the potentials dir.  Rather, you should copy that
+file into the directory you are running from.  If you wish to use
+another ReaxFF potential file, then name it "ffield.reax" and put it
+in the directory you run from.
+</P>
+<P>In the ReaxFF potential file, near the top, is a section that contains
+element names, each with a couple dozen numeric parameters.  The default
+ffield.reax provided with LAMMPS lists 5 elements: C, H, O, N, S.  
+Think of these as numbered 1 to 6.  Each of the N indices you specify for the N atom types of
+LAMMPS atoms must be an integer from 1 to 6.  Atoms with LAMMPS type 1
+will be mapped to whatever element you specify as the first index
+value, etc.
+</P>
+<P>In the pair_coeff example above, the LAMMPS simulation has 4 atoms
+types and they are set as follows:
+</P>
+<PRE>type 1 = O
+type 2 = C
+type 3 = H
+type 4 = H 
+</PRE>
+<HR>
+
+<P><B>Mixing, shift, table, tail correction, restart, rRESPA info</B>:
+</P>
+<P>This pair style does not support the <A HREF = "pair_modify.html">pair_modify</A>
+mix, shift, table, and tail options.
+</P>
+<P>This pair style does not write its information to <A HREF = "restart.html">binary restart
+files</A>, since it is stored in potential files.  Thus, you
+need to re-specify the pair_style and pair_coeff commands in an input
+script that reads a restart file.
+</P>
+<P>This pair style can only be used via the <I>pair</I> keyword of the
+<A HREF = "run_style.html">run_style respa</A> command.  It does not support the
+<I>inner</I>, <I>middle</I>, <I>outer</I> keywords.
+</P>
+<P><B>Restrictions:</B>
+</P>
+<P>This pair style is part of the "reax" package.  It is only enabled if
+LAMMPS was built with that package, which also requires the REAX
+library be built and linked with LAMMPS.  See the <A HREF = "Section_start.html#2_3">Making
+LAMMPS</A> section for more info.
+</P>
+<P>The ffield.reax potential file provided with LAMMPS in the potentials
+directory is parameterized for real <A HREF = "units.html">units</A>.  You can use
+the ReaxFF potential with any LAMMPS units, but you would need to
+create your own potential file with coefficients listed in the
+appropriate units if your simulation doesn't use "real" units.  This
+would be somewhat tricky, so contact the LAMMPS authors if you wish to
+do this.
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "pair_coeff.html">pair_coeff</A>
+</P>
+<P><B>Default:</B> none
+</P>
+<HR>
+
+<A NAME = "Chenoweth_2008"></A>
+
+<P><B>(Chenoweth)</B> Chenoweth, van Duin and Goddard III, 
+Journal of Physical Chemistry A, 112, 1040-1053 (2008).
+</P>
+</HTML>

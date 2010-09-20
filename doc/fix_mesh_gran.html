@@ -1,0 +1,114 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100603;15145700">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western">fix mesh/gran command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ID group-ID mesh/gran filename walltype scalefactor xoff yoff zoff phix phiy phiz (conveyor conveyor-values)</PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">mesh/gran = style name of this fix
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">filename = name of STL file
+	containing the STL data</P>
+	<LI><P STYLE="margin-bottom: 0in">walltype = atom type of the wall
+	imported from the STL file</P>
+	<LI><P STYLE="margin-bottom: 0in">scalefactor = scaling factor
+	applied to the geometry (dimensionless)</P>
+	<LI><P STYLE="margin-bottom: 0in">xoff, yoff,zoff = x-, y-, and
+	z-offsets applied to the imported geometry (length units)</P>
+	<LI><P STYLE="margin-bottom: 0in">phix, phiy, phiz = Angle of
+	geometry rotation around x-, y-, and z-axis (in grad) 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">conveyor = optional keyword for
+	conveyor belt model<BR><I>conveyor</I> values = vx vy vz</P>
+</UL>
+<UL>
+	<PRE>    vx = x-velocity of conveyor belt<BR>    vy = y-velocity of conveyor belt<BR>    vz = z-velocity of conveyor belt<BR>     <BR></PRE>
+</UL>
+<P><B>Examples:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix cad all mesh/gran indenter.stl 1 1.0 0. 0. 0. 0. 0. 0.</PRE><P>
+<B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P STYLE="margin-bottom: 0.2in; font-weight: normal">This command is
+not available in LAMMPS.</P>
+<P><B>Description:</B> 
+</P>
+<P>This fix allows the import of complex wall geometry for granular
+simulations from CAD by means of ASCII STL files. You can apply
+offset, scaling and rotation to the imported STL file. 
+</P>
+<P>If applying more then one of these operations, the offset is
+applied first and then the geometry is scaled. Then the geometry is
+rotated around the x-axis first, then around the y-axis, then around
+the z-axis. 
+</P>
+<P>One fix represents one wall with a specific material, where the
+material is identified with the <I>walltype. </I>If multiple walls
+with different materials are desired, the respective walls must be
+imported with different fix mesh/gran commands.</P>
+<P>IMPORTANT NOTE: For periodic boundaries, the STL mesh is NOT
+mapped. Instead, an error is generated if a vertex lies outside the
+simulation box.</P>
+<P>With the optional conveyor model, you can specify the imported
+mesh as conveyor belt. The velocity direction for each mesh face is
+given by the projection of the conveyor belt velocity parallel to the
+mesh face, the velocity magnitude for each mesh face is equal to the
+conveyor belt velocity. This ensures the model makes sense also in
+case the mesh is curved.</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P><FONT FACE="Liberation Serif, serif">This fix writes the STL data
+to <A HREF="restart.html">binary restart files</A> to be able to
+correctly resume the simulation in case the mesh is moved.</FONT>
+None of the <A HREF="fix_modify.html">fix_modify</A> options are
+relevant to this fix. No global scalar or vector or per-atom
+quantities are stored by this fix for access by various <A HREF="Section_howto.html#4_15">output
+commands</A>. No parameter of this fix can be used with the
+<I>start/stop</I> keywords of the <A HREF="run.html">run</A> command.
+This fix is not invoked during <A HREF="minimize.html">energy
+minimization</A>. 
+</P>
+<P><B>Restrictions:</B> 
+</P>
+<P>To date, only ASCII STL files can be read (binary is not
+supported). In the current implementation, each processor allocates
+memory for the whole geometry, which may lead to memory issues for
+very large geometries . It is not supported to use both the moving
+mesh and the conveyor belt feature.</P>
+<P><B>Related commands:</B> 
+</P>
+<P><A HREF="fix_wall_gran.html">fix wall/gran</A>, <A HREF="fix_mesh_gran_stressanalysis.html">fix
+mesh/gran/stressanalysis</A>, <A HREF="fix_mesh_gran_6dof.html">fix
+mesh/gran/6dof</A> 
+</P>
+<P><B>Default:</B> none 
+</P>
+</BODY>
+</HTML>

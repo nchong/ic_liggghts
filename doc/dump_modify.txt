@@ -1,0 +1,189 @@
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+dump_modify command :h3
+
+[Syntax:]
+
+dump_modify dump-ID keyword values ... :pre
+
+dump-ID = ID of dump to modify :ulb,l
+one or more keyword/value pairs may be appended :l
+keyword = {append} or {every} or {flush} or {format} or {image} or {label} or {precision} or {region} or {scale} or {sort} or {thresh} or {unwrap} :l
+  {append} arg = {yes} or {no}
+  {element} args = E1 E2 ... EN, where N = # of atom types
+    E1,...,EN = element name, e.g. C or Fe or Ga
+  {every} arg = N
+    N = dump every this many timesteps
+  {first} arg = {yes} or {no}
+  {format} arg = C-style format string for one line of output
+  {flush} arg = {yes} or {no}
+  {image} arg = {yes} or {no}
+  {label} arg = string
+    string = character string (e.g. BONDS) to use in header of dump local file
+  {precision} arg = power-of-10 value from 10 to 1000000
+  {region} arg = region-ID or "none"
+  {scale} arg = {yes} or {no}
+  {sort} arg = {yes} or {no}
+  {thresh} args = attribute operation value
+    attribute = same attributes (x,fy,etotal,sxx,etc) used by dump custom style
+    operation = "<" or "<=" or ">" or ">=" or "==" or "!="
+    value = numeric value to compare to
+    these 3 args can be replaced by the word "none" to turn off thresholding
+  {unwrap} arg = {yes} or {no} :pre
+:ule
+
+[Examples:]
+
+dump_modify 1 format "%d %d %20.15g %g %g" scale yes
+dump_modify myDump image yes scale no flush yes
+dump_modify 1 region mySphere thresh x < 0.0 thresh epair >= 3.2
+dump_modify xtcdump precision 10000 :pre
+
+[Description:]
+
+Modify the parameters of a previously defined dump command.  Not all
+parameters are relevant to all dump styles.
+
+The {append} keyword applies to all dump styles except {cfg} and {xtc}
+and {dcd}.  It also applies only to text output files, not to binary
+or gzipped files.  If specified as {yes}, then dump snapshots are
+appended to the end of an existing dump file.  If specified as {no},
+then a new dump file will be created which will overwrite an existing
+file with the same name.  This keyword can only take effect if the
+dump_modify command is used after the "dump"_dump.html command, but
+before the first command that causes dump snapshots to be output,
+e.g. a "run"_run.html or "minimize"_minimize.html command.  Once the
+dump file has been opened, this keyword has no further effect.
+
+The {element} keyword applies only to the the dump {cfg} style.  It
+associates element names (e.g. H, C, Fe) with LAMMPS atom types, so
+that the "AtomEye"_http://mt.seas.upenn.edu/Archive/Graphics/A
+visualization package can render atoms with the appropriate size and
+color.  An element name is specified for each atom type (1 to Ntype)
+in the simulation.  The same element name can be given to multiple
+atom types.
+
+The {every} keyword changes the dump frequency originally specified by
+the "dump"_dump.html command to a new value which must be > 0.  The
+dump frequency cannot be changed for the dump {dcd} style.
+
+The {first} keyword determines whether a dump snapshot is written on
+the very first timestep after the dump command is invoked.  This will
+always occur if the current timestep is a multiple of N, the frequency
+specified in the "dump"_dump.html command, including timestep 0.  But
+if this is not the case, a dump snapshot will only be written if the
+setting of this keyword is {yes}.  If it is {no}, which is the
+default, then it will not be written.
+
+The {flush} keyword determines whether a flush operation in invoked
+after a dump snapshot is written to the dump file.  A flush insures
+the output in that file is current (no buffering by the OS), even if
+LAMMPS halts before the simulation completes.  Flushes cannot be
+performed with dump style {xtc}.
+
+The text-based dump styles have a default C-style format string which
+simply specifies %d for integers and %g for real values.  The {format}
+keyword can be used to override the default with a new C-style format
+string.  Do not include a trailing "\n" newline character in the
+format string.  This option has no effect on the {dcd} and {xtc} dump
+styles since they write binary files.  Note that for the {cfg} style,
+the first two fields (atom id and type) are not actually written into
+the CFG file, though you must include formats for them in the format
+string.
+
+The {image} keyword applies only to the dump {atom} style.  If the
+image value is {yes}, 3 flags are appended to each atom's coords which
+are the absolute box image of the atom in each dimension.  For
+example, an x image flag of -2 with a normalized coord of 0.5 means
+the atom is in the center of the box, but has passed thru the box
+boundary 2 times and is really 2 box lengths to the left of its
+current coordinate.  Note that for dump style {custom} these various
+values can be printed in the dump file by using the appropriate atom
+attributes in the dump command itself.
+
+The {label} keyword applies only to the dump {local} style.  When
+it writes local informatoin, such as bond or angle topology
+to a dump file, it will use the specified {label} to format
+the header.  By default this includes 2 lines:
+
+ITEM: NUMBER OF ENTRIES
+ITEM: ENTRIES ... :pre
+
+The word "ENTRIES" will be replaced with the string specified,
+e.g. BONDS or ANGLES.
+
+The {precision} keyword only applies to the dump {xtc} style.  A
+specified value of N means that coordinates are stored to 1/N
+nanometer accuracy, e.g. for N = 1000, the coordinates are written to
+1/1000 nanometer accuracy.
+
+The {region} keyword only applies to the dump {custom} and {cfg}
+styles.  If specified, only atoms in the region will be written to the
+dump file.  Only one region can be applied as a filter (the last one
+specified).  See the "region"_region.html command for more details.
+Note that a region can be defined as the "inside" or "outside" of a
+geometric shape, and it can be the "union" or "intersection" of a
+series of simpler regions.
+
+The {scale} keyword applies only to the dump {atom} style.  A scale
+value of {yes} means atom coords are written in normalized units from
+0.0 to 1.0 in each box dimension.  If the simluation box is triclinic
+(tilted), then all atom coords will still be between 0.0 and 1.0.  A
+value of {no} means they are written in absolute distance units
+(e.g. Angstroms or sigma).
+
+The {sort} keyword applies only to the dump {cfg} style.  A sort value
+of {yes} means atoms will be written into the CFG file in sorted
+order, sorted by the atom ID.  A value of {no} means a sort will not
+be performed and that atoms may be in an indeterminate order,
+depending on which processor owns which atoms.
+
+The {thresh} keyword only applies to the dump {custom} and {cfg}
+styles.  Multiple thresholds can be specified.  Specifying "none"
+turns off all threshold criteria.  If thresholds are specified, only
+atoms whose attributes meet all the threshold criteria are written to
+the dump file.  The possible attributes that can be tested for are the
+same as those that can be specified in the "dump custom"_dump.html
+command.  Note that different attributes can be output by the dump
+custom command than are used as threshold criteria by the dump_modify
+command.  E.g. you can output the coordinates and stress of atoms
+whose energy is above some threshold.
+
+The {unwrap} keyword only applies to the dump {dcd} and {xtc} styles.
+If set to {yes}, coordinates will be written "unwrapped" by the image
+flags for each atom.  Unwrapped means that if the atom has passed thru
+a periodic boundary one or more times, the value is printed for what
+the coordinate would be if it had not been wrapped back into the
+periodic box.  Note that these coordinates may thus be far outside the
+box size stored with the snapshot.
+
+[Restrictions:] none
+
+[Related commands:]
+
+"dump"_dump.html, "undump"_undump.html
+
+[Default:]
+
+The option defaults are
+
+append = no
+element = "C" for every atom type
+every = whatever it was set to via the "dump"_dump.html command
+first = no
+flush = yes (except for the dump {xtc} style)
+format = %d and %g for each integer or floating point value
+image = no
+label = ENTRIES
+precision = 1000
+region = none
+scale = yes
+sort = no
+thresh = none
+unwrap = no :ul

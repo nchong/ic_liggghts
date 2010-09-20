@@ -1,0 +1,8 @@
+#include "atom_vec_angle.h"
+#include "atom_vec_atomic.h"
+#include "atom_vec_bond.h"
+#include "atom_vec_charge.h"
+#include "atom_vec_full.h"
+#include "atom_vec_granular.h"
+#include "atom_vec_hybrid.h"
+#include "atom_vec_molecular.h"

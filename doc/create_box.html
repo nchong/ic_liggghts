@@ -1,0 +1,73 @@
+<HTML>
+<CENTER><A HREF = "http://lammps.sandia.gov">LAMMPS WWW Site</A> - <A HREF = "Manual.html">LAMMPS Documentation</A> - <A HREF = "Section_commands.html#comm">LAMMPS Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>create_box command 
+</H3>
+<P><B>Syntax:</B>
+</P>
+<PRE>create_box N region-ID 
+</PRE>
+<UL><LI>N = # of atom types to use in this simulation
+<LI>region-ID = ID of region to use as simulation domain 
+</UL>
+<P><B>Examples:</B>
+</P>
+<PRE>create_box 2 mybox 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>This command creates a simulation box based on the specified region.
+Thus a <A HREF = "region.html">region</A> command must first be used to define a
+geometric domain.
+</P>
+<P>The argument N is the number of atom types that will be used in the
+simulation.
+</P>
+<P>If the region is not of style <I>prism</I>, then LAMMPS encloses the region
+(block, sphere, etc) with an axis-aligned (orthogonal) box which
+becomes the simulation domain.
+</P>
+<P>If the region is of style <I>prism</I>, LAMMPS creates a non-orthogonal
+simulation domain shaped as a parallelepiped with triclinic symmetry.
+See the <A HREF = "region.html">region prism</A> command for a description of how
+the shape of the parallelepiped is defined.  The parallelepiped has
+its "origin" at (xlo,ylo,zlo) and 3 edge vectors starting from its
+origin given by a = (xhi-xlo,0,0); b = (xy,yhi-ylo,0); c =
+(xz,yz,zhi-zlo).
+</P>
+<P>A prism region used with the create_box command must have tilt factors
+(xy,xz,yz) that do not skew the box more than half the distance of the
+parallel box length.  For example, if xlo = 2 and xhi = 12, then the x
+box length is 10 and the xy tilt factor must be between -5 and 5.
+Similarly, both xz and yz must be between -(xhi-xlo)/2 and
++(yhi-ylo)/2.  Note that this is not a limitation, since if the
+maximum tilt factor is 5 (as in this example), then configurations
+with tilt = ..., -15, -5, 5, 15, 25, ... are all equivalent.
+</P>
+<P>When a prism region is used, the simulation domain must be periodic in
+any dimensions with a non-zero tilt factor, as defined by the
+<A HREF = "boundary.html">boundary</A> command.  I.e. if the xy tilt factor is
+non-zero, then both the x and y dimensions must be periodic.
+Similarly, x and z must be periodic if xz is non-zero and y and z must
+be periodic if yz is non-zero.
+</P>
+<P><B>Restrictions:</B>
+</P>
+<P>An <A HREF = "atom_style.html">atom_style</A> and <A HREF = "region.html">region</A> must have
+been previously defined to use this command.
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "create_atoms.html">create_atoms</A>, <A HREF = "region.html">region</A>
+</P>
+<P><B>Default:</B> none
+</P>
+</HTML>

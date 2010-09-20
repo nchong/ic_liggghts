@@ -1,0 +1,140 @@
+<HTML>
+<CENTER><A HREF = "http://lammps.sandia.gov">LAMMPS WWW Site</A> - <A HREF = "Manual.html">LAMMPS Documentation</A> - <A HREF = "Section_commands.html#comm">LAMMPS Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>pair_style dipole/cut command 
+</H3>
+<P><B>Syntax:</B>
+</P>
+<PRE>pair_style dipole/cut cutoff (cutoff2) 
+</PRE>
+<UL><LI>cutoff = global cutoff LJ (and Coulombic if only 1 arg) (distance units)
+<LI>cutoff2 = global cutoff for Coulombic (optional) (distance units) 
+</UL>
+<P><B>Examples:</B>
+</P>
+<PRE>pair_style dipole/cut 10.0
+pair_coeff * * 1.0 1.0 
+pair_coeff 2 3 1.0 1.0 2.5 4.0 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>Style <I>dipole/cut</I> computes interactions between pairs of particles
+that each have a charge and/or a point dipole moment.  In addition to
+the usual Lennard-Jones interaction between the particles (Elj) the
+charge-charge (Eqq), charge-dipole (Eqp), and dipole-dipole (Epp)
+interactions are computed by these formulas for the energy (E), force
+(F), and torque (T) between particles I and J.
+</P>
+<CENTER><IMG SRC = "Eqs/pair_dipole.jpg">
+</CENTER>
+<P>where qi and qj are the charges on the two particles, pi and pj are
+the dipole moment vectors of the two particles, r is their separation
+distance, and the vector r = Ri - Rj is the separation vector between
+the two particles.  Note that Eqq and Fqq are simply Coulombic energy
+and force, Fij = -Fji as symmetric forces, and Tij != -Tji since the
+torques do not act symmetrically.  These formulas are discussed in
+<A HREF = "#Allen">(Allen)</A> and in <A HREF = "#Toukmaji">(Toukmaji)</A>.
+</P>
+<P>If one cutoff is specified in the pair_style command, it is used for
+both the LJ and Coulombic (q,p) terms.  If two cutoffs are specified,
+they are used as cutoffs for the LJ and Coulombic (q,p) terms
+respectively.
+</P>
+<P>Atoms with dipole moments should be integrated using the <A HREF = "fix_nve_sphere.html">fix
+nve/sphere update dipole</A> command to rotate the
+dipole moments.  The <A HREF = "compute_temp_sphere.html">compute temp/sphere</A>
+command can be used to monitor the temperature, since it includes
+rotational degrees of freedom.  The <A HREF = "atom_style.html">atom_style
+dipole</A> command should be used since it defines the
+point dipoles and their rotational state.  The magnitude of the dipole
+moment for each type of particle can be defined by the
+<A HREF = "dipole.html">dipole</A> command or in the "Dipoles" section of the data
+file read in by the <A HREF = "read_data.html">read_data</A> command.  Their initial
+orientation can be defined by the <A HREF = "set.html">set dipole</A> command or in
+the "Atoms" section of the data file.
+</P>
+<P>The following coefficients must be defined for each pair of atoms
+types via the <A HREF = "pair_coeff.html">pair_coeff</A> command as in the examples
+above, or in the data file or restart files read by the
+<A HREF = "read_data.html">read_data</A> or <A HREF = "read_restart.html">read_restart</A>
+commands, or by mixing as described below:
+</P>
+<UL><LI>epsilon (energy units)
+<LI>sigma (distance units)
+<LI>cutoff1 (distance units)
+<LI>cutoff2 (distance units) 
+</UL>
+<P>The latter 2 coefficients are optional.  If not specified, the global
+LJ and Coulombic cutoffs specified in the pair_style command are used.
+If only one cutoff is specified, it is used as the cutoff for both LJ
+and Coulombic interactions for this type pair.  If both coefficients
+are specified, they are used as the LJ and Coulombic cutoffs for this
+type pair.
+</P>
+<HR>
+
+<P><B>Mixing, shift, table, tail correction, restart, rRESPA info</B>:
+</P>
+<P>For atom type pairs I,J and I != J, the epsilon and sigma coefficients
+and cutoff distances for this pair style can be mixed.  The default
+mix value is <I>geometric</I>.  See the "pair_modify" command for details.
+</P>
+<P>For atom type pairs I,J and I != J, the A, sigma, d1, and d2
+coefficients and cutoff distance for this pair style can be mixed.  A
+is an energy value mixed like a LJ epsilon.  D1 and d2 are distance
+values and are mixed like sigma.  The default mix value is
+<I>geometric</I>.  See the "pair_modify" command for details.
+</P>
+<P>This pair style supports the <A HREF = "pair_modify.html">pair_modify</A> shift
+option for the energy of the Lennard-Jones portion of the pair
+interaction.
+</P>
+<P>The <A HREF = "pair_modify.html">pair_modify</A> table option is not relevant
+for this pair style.
+</P>
+<P>This pair style does not support the <A HREF = "pair_modify.html">pair_modify</A>
+tail option for adding long-range tail corrections to energy and
+pressure.
+</P>
+<P>This pair style writes its information to <A HREF = "restart.html">binary restart
+files</A>, so pair_style and pair_coeff commands do not need
+to be specified in an input script that reads a restart file.
+</P>
+<P>This pair style can only be used via the <I>pair</I> keyword of the
+<A HREF = "run_style.html">run_style respa</A> command.  It does not support the
+<I>inner</I>, <I>middle</I>, <I>outer</I> keywords.
+</P>
+<P><B>Restrictions:</B>
+</P>
+<P>This style is part of the "dipole" package.  It is only enabled if
+LAMMPS was built with that package.  See the <A HREF = "Section_start.html#2_3">Making
+LAMMPS</A> section for more info.
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "pair_coeff.html">pair_coeff</A>, <A HREF = "fix_nve_dipole.html">fix nve/dipole</A>,
+<A HREF = "compute_temp_dipole.html">compute temp/dipole</A>
+</P>
+<P><B>Default:</B> none
+</P>
+<HR>
+
+<A NAME = "Allen"></A>
+
+<P><B>(Allen)</B> Allen and Tildesley, Computer Simulation of Liquids,
+Clarendon Press, Oxford, 1987.
+</P>
+<A NAME = "Toukmaji"></A>
+
+<P><B>(Toukmaji)</B> Toukmaji, Sagui, Board, and Darden, J Chem Phys, 113,
+10913 (2000).
+</P>
+</HTML>

@@ -1,0 +1,17 @@
+This is the LIGGGHTS software package.
+
+
+README			   this file
+LICENSE			   the GNU General Public License (GPL)
+doc			   documentation
+examples		   simple test problems
+lib			   libraries to link with
+potentials		   interatomic potential files
+src			   source files
+tools			   pre- and post-processing tools
+
+Point your browser at any of these files to get started:
+
+doc/Manual.html	           the manual
+doc/Section_intro.html	   hi-level introduction
+doc/Section_start.html	   how to build and use

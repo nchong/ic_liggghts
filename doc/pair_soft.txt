@@ -1,0 +1,87 @@
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+pair_style soft command :h3
+
+[Syntax:]
+
+pair_style soft cutoff :pre
+
+cutoff = global cutoff for soft interactions (distance units) :ul
+
+[Examples:]
+
+pair_style soft 2.5
+pair_coeff * * 0.0 60.0
+pair_coeff 1 1 0.0 60.0 3.0 :pre
+
+[Description:]
+
+Style {soft} computes pairwise interactions with the formula
+
+:c,image(Eqs/pair_soft.jpg)
+
+It is useful for pushing apart overlapping atoms, since it does not
+blow up as r goes to 0.  A is a pre-factor that varies in time from
+the start to the end of the run.  The "run"_run.html command documents
+how to make the ramping take place across multiple runs.  Rc is the
+cutoff.  See the "fix nve/limit"_fix_nve_limit.html command for
+another way to push apart overlapping atoms.
+
+The following coefficients must be defined for each pair of atom types
+via the "pair_coeff"_pair_coeff.html command as in the examples above,
+or in the data file or restart files read by the
+"read_data"_read_data.html or "read_restart"_read_restart.html
+commands, or by mixing as described below:
+
+Astart (energy units)
+Astop (energy units)
+cutoff (distance units) :ul
+
+Astart and Astop are the values of the prefactor at the start and end
+of the next run.  At intermediate times the value of A will be ramped
+between these 2 values.  Note that before performing a 2nd run, you
+will want to adjust the values of Astart and Astop for all type pairs,
+or switch to a new pair style.
+
+The last coefficient is optional.  If not specified, the global soft
+cutoff is used.
+
+:line
+
+[Mixing, shift, table, tail correction, restart, rRESPA info]:
+
+For atom type pairs I,J and I != J, the Astart, Astop coefficients and
+cutoff distance for this pair style can be mixed.  Astart and Atop are
+always mixed via a {geometric} rule.  The cutoff is mixed according to
+the pair_modify mix value.  The default mix value is {geometric}.  See
+the "pair_modify" command for details.
+
+This pair style does not support the "pair_modify"_pair_modify.html
+shift option, since the pair interaction goes to 0.0 at the cutoff.
+
+The "pair_modify"_pair_modify.html table and tail options are not
+relevant for this pair style.
+
+This pair style writes its information to "binary restart
+files"_restart.html, so pair_style and pair_coeff commands do not need
+to be specified in an input script that reads a restart file.
+
+This pair style can only be used via the {pair} keyword of the
+"run_style respa"_run_style.html command.  It does not support the
+{inner}, {middle}, {outer} keywords.
+
+:line
+
+[Restrictions:] none
+
+[Related commands:]
+
+"pair_coeff"_pair_coeff.html, "fix nve/limit"_fix_nve_limit.html
+
+[Default:] none

@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100629;10282900">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western">fix move/mesh/gran command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ID group-ID move/mesh/gran style args keyword values meshgran_id ssf</PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">move = style name of this fix
+	command 
+	</P>
+	<LI><P>style = <I>linear</I> or <I>wiggle</I> or r<I>iggle</I> or
+	<I>rotate</I> or <I>variable</I> 
+	</P>
+	<PRE>  <I>linear</I> args = Vx Vy Vz
+    Vx,Vy,Vz = components of velocity vector (velocity units), any component can be specified as NULL
+  <I>wiggle</I> args = Ax Ay Az period
+    Ax,Ay,Az = components of amplitude vector (distance units), any component can be specified as NULL
+    period = period of oscillation (time units)
+  <I>rotate</I> args = Px Py Pz Rx Ry Rz period
+    Px,Py,Pz = origin point of axis of rotation (distance units)
+    Rx,Ry,Rz = axis of rotation vector
+    period = period of rotation (time units)</PRE><P STYLE="margin-bottom: 0in">
+	    r<I>iggle</I> args = Px Py Pz Rx Ry Rz period  amplitude</P>
+	<PRE>    Px,Py,Pz = origin point of axis of rotation (distance units)
+    Rx,Ry,Rz = axis of rotation vector (radians)<BR>    period = period of oscillation (time units)
+    amplitude = amplitude of rotational oscillation (in 
+  <I>variable</I> args = v_dx v_dy v_dz v_vx v_vy v_vz
+    v_dx,v_dy,v_dz = 3 variable names that calculate x,y,z displacement as function of time, any component can be specified as NULL
+    v_vx,v_vy,v_vz = 3 variable names that calculate x,y,z velocity as function of time, any component can be specified as NULL </PRE>
+	<LI><P STYLE="margin-bottom: 0in">zero or more keyword/value pairs
+	may be appended 
+	</P>
+	<LI><P STYLE="margin-bottom: 0.1in">keyword = <I>units</I> 
+	</P>
+	<PRE STYLE="margin-bottom: 0.2in">  <I>units</I> value = <I>box</I></PRE>
+	<LI><PRE STYLE="margin-bottom: 0.2in"><FONT FACE="Liberation Serif, serif"><FONT SIZE=3>meshgran_id = id for the fix mesh/gran that the fix move/mesh/gran is applied to</FONT></FONT></PRE>
+	<LI><PRE STYLE="margin-bottom: 0.2in"><FONT FACE="Liberation Serif, serif"><FONT SIZE=3>ssf = a skin safety factor (no longer used)</FONT></FONT></PRE>
+</UL>
+<P><B>Examples:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix movecad all move/mesh/gran linear -0.5 0. -0.3 cad 1.0 </PRE><P>
+<B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P STYLE="margin-bottom: 0.2in; font-weight: normal">This command is
+not available in LAMMPS.</P>
+<P><B>Description:</B> 
+</P>
+<P>The mesh imported by the fix mesh/gran with the given id is moved.
+For details on the styles and their args, see <A HREF="../fix_move.html">fix
+move</A> . Argument <I>meshgran_id</I> is the fix id of the fix of
+type <A HREF="fix_mesh_gran.html">fix mesh/gran</A> that holds the
+STL data for the triangles to be moved. The skin safety factor <I>ssf</I>
+input is no longer used (it is determined automatically).</P>
+<P>NOTE: If a dangerous tri neighbor list build is detected, this may
+be due to the fact that the geometry is moved too close to a region
+where particle insertion is taking place so that initial
+interpenetration happens when the particles are inserted. 
+</P>
+<P>NOTE: When moving a triangle, not only the node positions are
+moved but also a couple of other vectors. So moving one triangle is
+roughly as costly as moving 11 particles. The current implementation
+is effectively serial, which may lead to performance issues for very
+large geometries</P>
+<P>IMPORTANT NOTE: For periodic boundaries, the STL mesh is NOT
+mapped.</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P>This fix writes the original coordinates of moving triangles to
+<A HREF="restart.html">binary restart files</A>, so that the motion
+can not directly be continued in a restarted simulation. None of the
+<A HREF="fix_modify.html">fix_modify</A> options are relevant to this
+fix. No parameter of this fix can be used with the <I>start/stop</I>
+keywords of the <A HREF="run.html">run</A> command. This fix is not
+invoked during <A HREF="minimize.html">energy minimization</A>. 
+</P>
+<P><B>Restrictions:</B> 
+</P>
+<P>This fix automatically assumes 'units box', 'units lattice' is not
+possible . The current implementation is effectively serial, which
+may lead to performance issues for very large geometries . 
+</P>
+<P><B>Related commands:</B> 
+</P>
+<P><A HREF="../fix_move.html">fix move</A> 
+</P>
+<P><B>Default:</B> units = box 
+</P>
+</BODY>
+</HTML>

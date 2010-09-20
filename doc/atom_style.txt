@@ -1,0 +1,122 @@
+"LAMMPS WWW Site"_lws - "LAMMPS Documentation"_ld - "LAMMPS Commands"_lc :c
+
+:link(lws,http://lammps.sandia.gov)
+:link(ld,Manual.html)
+:link(lc,Section_commands.html#comm)
+
+:line
+
+atom_style command :h3
+
+[Syntax:]
+
+atom_style style args :pre
+
+style = {angle} or {atomic} or {bond} or {charge} or {colloid} or {dipole} or \
+        {ellipsoid} or {full} or {granular} or {molecular} or \
+	{peri} or {hybrid} :ul
+  args = none for any style except {hybrid}
+  {hybrid} args = list of one or more sub-styles :pre
+
+[Examples:]
+
+atom_style atomic
+atom_style bond
+atom_style full
+atom_style hybrid charge bond :pre
+
+[Description:]
+
+Define what style of atoms to use in a simulation.  This determines
+what attributes are associated with the atoms.  This command must be
+used before a simulation is setup via a "read_data"_read_data.html,
+"read_restart"_read_restart.html, or "create_box"_create_box.html
+command.
+
+Once a style is assigned, it cannot be changed, so use a style general
+enough to encompass all attributes.  E.g. with style {bond}, angular
+terms cannot be used or added later to the model.  It is OK to use a
+style more general than needed, though it may be slightly inefficient.
+
+The choice of style affects what quantities are stored by each atom,
+what quantities are communicated between processors to enable forces
+to be computed, and what quantities are listed in the data file read
+by the "read_data"_read_data.html command.
+
+These are the additional attributes of each style and the typical
+kinds of physical systems they are used to model.  All styles store
+coordinates, velocities, atom IDs and types.  See the
+"read_data"_read_data.html, "create_atoms"_create_atoms.html, and
+"set"_set.html commands for info on how to set these various
+quantities.
+
+{angle} | bonds and angles | bead-spring polymers with stiffness |
+{atomic} | only the default values | coarse-grain liquids, solids, metals |
+{bond} | bonds | bead-spring polymers |
+{charge} | charge | atomic system with charges |
+{colloid} | angular velocity | extended spherical particles |
+{dipole} | charge and dipole moment | atomic system with dipoles |
+{ellipsoid} | quaternion for particle orientation, angular momentum | extended aspherical particles |
+{full} | molecular + charge | bio-molecules |
+{granular} | diameter, density, angular velocity | granular models |
+{molecular} | bonds, angles, dihedrals, impropers | uncharged molecules |
+{peri} | density, volume | mesocopic Peridynamic models :tb(c=3,s=|)
+
+All of the styles define point particles, except the {colloid},
+{dipole}, {ellipsoid}, {granular}, and {peri} styles, which define
+finite-size particles.  For {colloid}, {dipole}, and {ellipsoid}
+systems, the "shape"_shape.html command is used to specify the size
+and shape of particles on a per-type basis, which is spherical for
+{colloid} and {dipole} particles and spherical or aspherical for
+{ellipsoid} particles.  For {granular} systems, the particles are
+spherical and each has a per-particle specified diameter.  For {peri}
+systems, the particles are spherical and each has a per-particle
+specified volume.
+
+All of the styles assign mass to particles on a per-type basis, using
+the "mass"_mass.html command, except the {granular} and {peri} styles
+which assign mass on a per-particle basis.  For {granular} systems,
+the specified diameter and density are used to calculate each
+particle's mass.  For {peri} systems, the speficied volume and density
+are used to calculate each particle's mass.
+
+:line
+
+Typically, simulations require only a single (non-hybrid) atom style.
+If some atoms in the simulation do not have all the properties defined
+by a particular style, use the simplest style that defines all the
+needed properties by any atom.  For example, if some atoms in a
+simulation are charged, but others are not, use the {charge} style.
+If some atoms have bonds, but others do not, use the {bond} style.
+
+The only scenario where the {hybrid} style is needed is if there is no
+single style which defines all needed properties of all atoms.  For
+example, if you want colloidal particles with charge, you would need
+to use "atom_style hybrid colloid charge".  When a hybrid style is
+used, atoms store and communicate the union of all quantities implied
+by the individual styles.
+
+LAMMPS can be extended with new atom styles; see "this
+section"_Section_modify.html.
+
+[Restrictions:]
+
+This command cannot be used after the simulation box is defined by a
+"read_data"_read_data.html or "create_box"_create_box.html command.
+
+The {angle}, {bond}, {full}, and {molecular} styles are part of the
+"molecular" package.  The {granular} style is part of the "granular"
+package.  The {colloid} style is part of the "colloid" package.  The
+{dipole} style is part of the "dipole" package.  The {ellipsoid} style
+is part of the "asphere" package.  The {peri} style is part of the
+"peri" package for Peridynamics.  They are only enabled if LAMMPS was
+built with that package.  See the "Making
+LAMMPS"_Section_start.html#2_3 section for more info.
+
+[Related commands:]
+
+"read_data"_read_data.html, "pair_style"_pair_style.html
+
+[Default:]
+
+atom_style atomic

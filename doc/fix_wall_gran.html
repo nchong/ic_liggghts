@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100415;22215900">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western" STYLE="margin-top: 0.17in; margin-bottom: 0in">fix
+wall/gran/hertz/history command</H3>
+<H3 CLASS="western" STYLE="margin-top: 0.2in; margin-bottom: 0.2in">fix
+wall/gran/hooke/history command 
+</H3>
+<H3 CLASS="western" STYLE="margin-top: 0in; margin-bottom: 0.2in">fix
+wall/gran/hooke command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">fix ID group-ID wall/gran/hertz/history dampflag cohesionflag wallstyle args keyword values ... 
+fix ID group-ID wall/gran/hooke/history  dampflag cohesionflag wallstyle args keyword values ... 
+fix ID group-ID wall/gran/hooke          dampflag cohesionflag wallstyle args keyword values ... </PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in <A HREF="fix.html">fix</A>
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">wall/gran = style name of this fix
+	command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">dampflag = 0 or 1 if tangential
+	damping force is excluded or included 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">wallstyle = <I>mesh/gran</I> or
+	<I>xplane</I> or <I>yplane</I> or <I>zplane</I> or <I>zcylinder</I> 
+	</P>
+	<LI><P>args = list of arguments for a particular style 
+	</P>
+	<PRE>  <I>xplane</I> or <I>yplane</I> or <I>zplane</I> args = lo hi atom_type_wall
+    atom_type_wall = determines the wall material
+    lo,hi = position of lower and upper plane (distance units), either can be NULL)
+  <I>zcylinder</I> args = radius atom_type_wall 
+    atom_type_wall = determines the wall material
+    radius = cylinder radius (distance units) 
+  <I>mesh/gran</I> args = nfix fix_id1, fix_id2,...
+    nfix = number of fixes of type mesh/gran that are used for the wall.
+    fix_id1, fix_id2,... = id of the fix mesh/gran that is used. These must be defined before using the fix wall/gran command</PRE>
+	<LI><P STYLE="margin-bottom: 0in">zero or more keyword/value pairs
+	may be appended to args 
+	</P>
+	<LI><P>keyword = <I>wiggle</I> or <I>shear</I> 
+	</P>
+	<PRE>  <I>wiggle</I> values = dim amplitude period
+    dim = <I>x</I> or <I>y</I> or <I>z</I>
+    amplitude = size of oscillation (distance units)
+    period = time of oscillation (time units)
+  <I>shear</I> values = dim vshear
+    dim = <I>x</I> or <I>y</I> or <I>z</I>
+    vshear = magnitude of shear velocity (velocity units) </PRE>
+</UL>
+<P><B>Examples:</B> 
+</P>
+<PRE>fix zwalls all wall/gran/hertz/history 1 0 zplane 0.0 0.15 1
+fix cylwalls all wall/gran/hertz/history 1 0 zcylinder 0.05 1</PRE><P>
+<B>LIGGGHTS vs. LAMMPS Info: </B>
+</P>
+<P STYLE="margin-bottom: 0.2in; font-weight: normal">This command has
+been improved to in accordance with the overhauled <A HREF="pair_gran.html">pair_style
+granular</A>. Furthermore, it offers the new wallstyle <I>mesh/gran,</I><SPAN STYLE="font-style: normal">
+which enables fix wall/gran to handle complex wall geometries
+imported from CAD.</SPAN></P>
+<P><B>Description:</B> 
+</P>
+<P>Bound the simulation domain of a granular system with a frictional
+wall. All particles in the group interact with the wall when they are
+close enough to touch it. The equation for the force between the wall
+and particles touching it is the same as the corresponding equation
+on the <A HREF="pair_gran.html">pair_style granular</A> doc page, in
+the limit of one of the two particles going to infinite radius and
+mass (flat wall). 
+</P>
+<P>You must choose the <I>wallstyle</I> matching the pair style used,
+otherwise an error is created (e.g.: pair gran/hertz/history is
+incompatible with fix wall/gran/hooke). As with <A HREF="pair_gran.html">pair_style
+granular</A>, you have to define the mechanical properties for each
+material you are used in the simulation with <A HREF="fix_property.html">fix
+property</A> commands. See <A HREF="pair_gran.html">pair_style
+granular</A> for more details. 
+</P>
+<P>For <I>wallstyle</I> <I>mesh/gran</I>, the granular potential for
+the tri-sphere interaction is mostly based on a paper of Kremmer and
+Favier: &quot;A method for representing boundaries in discrete
+element modelling&quot; , M. Kremmer, J.F. Favier, International
+Journal for Numerical Methods in Engineering (2001), Volume 51 Issue
+12, Pages 1407 – 1421. Internally, triangle-particle neighbor lists
+are built to efficiently track particle-triangle contacts.
+Particle-tri neighbor list build is triggered if any particle moves
+more than half the skin distance or (in case of moving mesh) if the
+mesh itself moves more than half the skin distance since the last
+build. A warning is generated if a dangerous particle-tri neigh list
+build is detected (e.g. if pouring too close to a wall, see section
+'restrictions'). <BR>For style <I>mesh/gran</I>, atom_type_wall is
+inherited from the atom style provided in the fix mesh/gran command.
+fix_id1, fix_id2 etc. must be ids of valid fixes of type <A HREF="fix_mesh_gran.html">fix
+mesh/gran, </A>defining the granular mesh to be used for the wall.</P>
+<P>NOTE: The keywords wiggle or shear can NOT be used for style
+mesh/gran. For a moving granular wall with style style mesh/gran, use
+the more flexible and powerful command <A HREF="fix_move_mesh_gran.html">fix
+move/mesh/gran, </A>
+</P>
+<P>Other <I>wallstyles</I> can be planar or cylindrical. The 3 planar
+options specify a pair of walls in a dimension. Wall positions are
+given by <I>lo</I> and <I>hi</I>. Either of the values can be
+specified as NULL if a single wall is desired. For a <I>zcylinder</I>
+wallstyle, the cylinder's axis is at x = y = 0.0, and the radius of
+the cylinder is specified. 
+</P>
+<P>Optionally, planar or cylindrical walls can be moving, if the
+<I>wiggle</I> or <I>shear</I> keywords are appended. Both keywords
+cannot be used together. 
+</P>
+<P>For the <I>wiggle</I> keyword, the wall oscillates sinusoidally,
+similar to the oscillations of frozen particles specified by the
+<A HREF="fix_wiggle.html">fix_wiggle</A> command. This is useful in
+packing simulations of granular particles. The arguments to the
+<I>wiggle</I> keyword specify a dimension for the motion, as well as
+it's <I>amplitude</I> and <I>period</I>. Note that if the dimension
+is in the plane of the wall, this is effectively a shearing motion.
+If the dimension is perpendicular to the wall, it is more of a
+shaking motion. A <I>zcylinder</I> wall can only be wiggled in the z
+dimension. 
+</P>
+<P>Each timestep, the position of a wiggled wall in the appropriate
+<I>dim</I> is set according to this equation: 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">position = coord + A - A cos (omega * delta) </PRE><P>
+where <I>coord</I> is the specified initial position of the wall, <I>A</I>
+is the <I>amplitude</I>, <I>omega</I> is 2 PI / <I>period</I>, and
+<I>delta</I> is the time elapsed since the fix was specified. The
+velocity of the wall is set to the derivative of this expression. 
+</P>
+<P>For the <I>shear</I> keyword, the wall moves continuously in the
+specified dimension with velocity <I>vshear</I>. The dimension must
+be tangential to walls with a planar <I>wallstyle</I>, e.g. in the <I>y</I>
+or <I>z</I> directions for an <I>xplane</I> wall. For <I>zcylinder</I>
+walls, a dimension of <I>z</I> means the cylinder is moving in the
+z-direction along it's axis. A dimension of <I>x</I> or <I>y</I>
+means the cylinder is spinning around the z-axis, either in the
+clockwise direction for <I>vshear</I> &gt; 0 or counter-clockwise for
+<I>vshear</I> &lt; 0. In this case, <I>vshear</I> is the tangential
+velocity of the wall at whatever <I>radius</I> has been defined. 
+</P>
+<P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
+</P>
+<P>This fix writes the shear friction state of atoms interacting with
+the wall to <A HREF="restart.html">binary restart files</A>, so that
+a simulation can continue correctly if granular potentials with shear
+&quot;history&quot; effects are being used. See the <A HREF="read_restart.html">read_restart</A>
+command for info on how to re-specify a fix in an input script that
+reads a restart file, so that the operation of the fix continues in
+an uninterrupted fashion. 
+</P>
+<P>None of the <A HREF="fix_modify.html">fix_modify</A> options are
+relevant to this fix. No global scalar or vector or per-atom
+quantities are stored by this fix for access by various <A HREF="Section_howto.html#4_15">output
+commands</A>. No parameter of this fix can be used with the
+<I>start/stop</I> keywords of the <A HREF="run.html">run</A> command.
+This fix is not invoked during <A HREF="minimize.html">energy
+minimization</A>. 
+</P>
+<P><B>Restrictions:</B> 
+</P>
+<P>There can be only one fix wall/gran with style mesh/gran. In
+practice, this is not a restriction because you can include multiple
+fixes of type mesh/gran in the fix wall/gran command . 
+</P>
+<P>When using style 'mesh/gran', you have to use the style 'bin' for
+the <A HREF="neighbor.html">neighbor </A>command. 
+</P>
+<P>When using style 'mesh/gran' in combination with the 'fix pour'
+command, you always have to keep a minimum distance between the wall
+and the insertion region that is equal to maximum particle radius +
+half the neighbor skin defined in the <A HREF="neighbor.html">neighbor</A>
+command. Otherwise, newly inserted particles interpenetrate the walls
+before a triangle neighbor list is built the first time.</P>
+<P>The keywords wiggle or shear can NOT be used for style mesh/gran.
+For moving granular wall with style style mesh/gran, use the command
+<A HREF="fix_move_mesh_gran.html">fix move/mesh/gran</A>. 
+</P>
+<P>Any dimension (xyz) that has a granular wall must be non-periodic.
+</P>
+<P><B>Related commands:</B> 
+</P>
+<P><A HREF="fix_wiggle.html">fix_wiggle</A>, <A HREF="pair_gran.html">pair_style
+granular, </A><A HREF="fix_move_mesh_gran.html">fix move/mesh/gran,
+</A><A HREF="fix_mesh_gran.html">fix mesh/gran, </A>
+</P>
+<P><B>Default:</B> none 
+</P>
+</BODY>
+</HTML>

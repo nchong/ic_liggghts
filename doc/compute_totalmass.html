@@ -1,0 +1,73 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="CREATED" CONTENT="0;0">
+	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
+	<META NAME="CHANGED" CONTENT="20100416;18172600">
+	<STYLE TYPE="text/css">
+	<!--
+		H3.western { font-family: "Albany", sans-serif }
+		H3.cjk { font-family: "HG Mincho Light J" }
+		H3.ctl { font-family: "Arial Unicode MS" }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="Manual.html">LIGGGHTS
+Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
+<A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
+</P>
+<HR>
+<H3 CLASS="western">compute totalmass command 
+</H3>
+<P><B>Syntax:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">compute id group totalmass filename</PRE>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">ID, group-ID are documented in
+	<A HREF="compute.html">compute</A> command 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">totalmass = style name of this
+	compute command</P>
+	<LI><P>file where to output</P>
+</UL>
+<P><B>Examples:</B> 
+</P>
+<PRE STYLE="margin-bottom: 0.2in">compute 1 all totalmass out.mass </PRE><P>
+<B>Description:</B> 
+</P>
+<P>Computes the total mass of the given group. Also, it outputs this
+mass to the given file. The output is written every time the compute
+is invoked by a dump command (a dump global or dump local): 
+</P>
+<P>Example: If you define a</P>
+<P><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>compute 1
+all totalmass out.mass2</FONT></FONT></P>
+<P>and a</P>
+<P><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>dump dmp2
+all local 100 out.mass1 c_1 </FONT></FONT>
+</P>
+<P>the mass is written to both the files out.mass1 and out.mass2. The
+difference is that out.mass2 is written in a format {timestep mass},
+that can easily be . This is e.g. useful for tracking particles
+gained at a inlet or lost at an outlet. 
+</P>
+<P><B>Output info:</B> 
+</P>
+<P>The mass is output as global value, to be accessed e.g. by the
+thermo command and as local value. Both output contains the total
+group mass (sum of all processor partitions).</P>
+<P><B>Restrictions:</B> none 
+</P>
+<P><B>Related commands:</B> 
+</P>
+<P><A HREF="compute_com_molecule.html">compute com/molecule</A> 
+</P>
+<P><B>Default:</B> none 
+</P>
+</BODY>
+</HTML>
