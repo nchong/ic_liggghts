@@ -7,7 +7,7 @@
 	<META NAME="AUTHOR" CONTENT="http://www.cfdem.com - CFDEM">
 	<META NAME="CREATED" CONTENT="0;0">
 	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
-	<META NAME="CHANGED" CONTENT="20100629;18135700">
+	<META NAME="CHANGED" CONTENT="20100416;19065100">
 	<META NAME="copyright" CONTENT="Copyright (2010) cfdem, Copyright (2003) Sandia Corporation.  This software and manual is distributed under the GNU General Public License.">
 	<META NAME="docnumber" CONTENT="LIGGGHTS">
 	<STYLE TYPE="text/css">
@@ -20,23 +20,23 @@
 </HEAD>
 <BODY LANG="en-US" DIR="LTR">
 <P ALIGN=CENTER STYLE="margin-bottom: 0in"><A HREF="http://www.liggghts.com/"><FONT FACE="Liberation Serif, serif">LIGGGHTS
-WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="../doc">LIGGGHTS
+WWW Site</FONT></A> <FONT FACE="Liberation Serif, serif">- <A HREF="">LIGGGHTS
 Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
 <A HREF="Section_commands.html#comm">LIGGGHTS Commands</A></FONT> 
 </P>
 <HR>
 <H3 CLASS="western" ALIGN=CENTER>LIGGGHTS Documentation 
 </H3>
-<P ALIGN=CENTER>(1.1 Version) 
+<P ALIGN=CENTER>(beta 2 Version) 
 </P>
 <P>LIGGGHTS stands for LAMMPS Improved for General Granular and
 Granular Heat Transfer Simulations.</P>
 <P>The main developer of LIGGGHTS is Christoph Kloss, who can be
 contacted at <A HREF="mailto:christoph.kloss@liggghts.com">christoph.kloss@liggghts.com</A>.
 Bug reports can be sent to <A HREF="mailto:bug@liggghts.com">bug@liggghts.com.</A></P>
-<P><A HREF="http://www.liggghts.com/">www.liggghts.com</A> has more
-information about the code and its uses. For questions about the
-code, please use the forums at <A HREF="http://www.liggghts.com/">www.liggghts.com</A></P>
+<P>www.liggghts.com has more information about the code and its uses.
+For questions about the code, please use the forums at
+<A HREF="http://www.liggghts.com/">www.liggghts.com</A></P>
 <P>LIGGGHTS is part of the CFDEM project with the goal to develop a
 new CFD-DEM code totally based on open source software. The main
 developers for the CFD-DEM coupling are Christoph Goniva and

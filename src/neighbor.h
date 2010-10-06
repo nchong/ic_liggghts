@@ -53,6 +53,7 @@ class Neighbor : protected Pointers {
 
   int nbondlist;                   // list of bonds to compute
   int **bondlist;
+  double **bondhistlist; 
   int nanglelist;                  // list of angles to compute
   int **anglelist;
   int ndihedrallist;               // list of dihedrals to compute

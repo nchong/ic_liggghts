@@ -303,4 +303,3 @@ bool STLtri::are_coplanar_neighs(int i1,int i2)
         return contactInactive[i1] & EDGE_INACTIVE[2];
     else return false;
 }
-

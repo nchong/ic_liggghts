@@ -126,14 +126,15 @@ FixMeshGran::FixMeshGran(LAMMPS *lmp, int narg, char **arg) :
 /* ---------------------------------------------------------------------- */
 
 void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,double ***ogK,double **ogKlen,double ***oKO,double *rK,double *Area,double**facenormal,int **neighfaces,int *contactInactive)
-  {
-      double *temp=new double[3];
-      bool flag_skewed=false;
+{
+      double temp[3];
+      bool flag_skewed = false;
 
-      p_ref=new double[3];
+      p_ref = new double[3];
       p_ref[0]=0.;p_ref[1]=0.;p_ref[2]=0.;
       double A_tri,A_ges=0.;
-      double *oKO0Neg=new double[3];
+      double oKO0Neg[3];
+      int count = 0;
 
       for(int i=0;i<nTri;i++)
       {
@@ -170,7 +171,7 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
           double mag0=vectorMag3D(oKO[i][0]),mag1=vectorMag3D(oKO[i][1]),mag2=vectorMag3D(oKO[i][2]);
           double sr0 = fmax(mag0/mag1,mag1/mag0),sr1 = fmax(mag1/mag2,mag2/mag1),sr2 = fmax(mag0/mag2,mag2/mag0);
           double side_ratio_max = fmax(fmax(sr0,sr1),sr2);
-          if(side_ratio_max>SIDE_RATIO_TOLERANCE) flag_skewed=true;
+          if(side_ratio_max > SIDE_RATIO_TOLERANCE) flag_skewed=true;
 
           //normalize
           for (int j=0;j<3;j++) vectorScalarDiv3D(oKO[i][j],vectorMag3D(oKO[i][j]));
@@ -249,7 +250,7 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
                      vectorSubtract3D(node[i][iVertex],node[j][jVertex],temp);
                      
                      double dist=vectorMag3D(temp);
-                     if(dist<NEIGH_TOLERANCE*0.5*(rK[i]+rK[j]))
+                     if(dist < NEIGH_TOLERANCE*0.5*(rK[i]+rK[j]))
                      {
                          
                          common1[iVertex]=1;
@@ -280,17 +281,25 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
           }
       }
 
-      for(int i=0;i<nTri;i++) //loop tris
+      int *prevFaces = new int[nTri];
+
+      for(int i = 0; i < nTri; i++) //loop tris
       {
           
           for(int j=0;j<3;j++)
           {
               int iNeigh=neighfaces[i][j];
-              if(iNeigh>=0)
+              if(iNeigh >= 0)
               {
+                  
+                  double dot = vectorDot3D(facenormal[i],facenormal[iNeigh]);
+                  if(fabs(dot) > (1.-EPSILON) )
+                  {
+                      contactInactive[i] |= EDGE_INACTIVE[j];
+                      
+                  }
 
-                  double dot=vectorDot3D(facenormal[i],facenormal[iNeigh]);
-                  if(fabs(dot)>(1-EPSILON))
+                  if(iNeigh > i)
                   {
                       contactInactive[i] |= EDGE_INACTIVE[j];
                       
@@ -307,7 +316,7 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
               int neigh1 = neighfaces[i][edge1];
               int neigh2 = neighfaces[i][edge2];
 
-              if(neigh1>=0 && neigh2>=0)
+              if(neigh1 >= 0 && neigh2 >= 0)
               {
                   double dot1=vectorDot3D(facenormal[i],facenormal[neigh1]);
                   double dot2=vectorDot3D(facenormal[i],facenormal[neigh2]);
@@ -316,15 +325,70 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
                       contactInactive[i] |= CORNER_INACTIVE[j];
                       
                   }
+              }
 
+              int maxid = -1,nPrev = 0;
+              
+              if(neigh1 >= 0) maxid = get_max_index_sharedcorner(i,nPrev,prevFaces,node[i][j],node,rK,neighfaces);
+
+              if(i < maxid)
+              {
+                  contactInactive[i] |= CORNER_INACTIVE[j];
+                  
               }
           }
       }
-
+      delete []prevFaces;
+      
       if(comm->me==0)fprintf(screen,"finished!\n");
-      delete []temp;
-      delete []oKO0Neg;
-  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+int FixMeshGran::get_max_index_sharedcorner(int iTri,int &nPrev,int *prevFaces,double *node2check,double ***node,double *rK,int **neighfaces)
+{
+    
+    if(iTri < 0)
+    {
+        
+        return -1;
+    }
+
+    double temp[3];
+
+    for(int ic = 0; ic < nPrev-1; ic++)
+       if(prevFaces[ic] == iTri) return -1;
+
+    prevFaces[nPrev++] = iTri;
+
+    bool contains = false;
+    for(int j = 0; j < 3; j++)
+    {
+        vectorSubtract3D(node2check,node[iTri][j],temp);
+        double dist=vectorMag3D(temp);
+        if(dist < NEIGH_TOLERANCE*rK[iTri]) contains = true;
+    }
+
+    if(!contains)
+    {
+        
+        return -1;
+    }
+
+    int n0 = neighfaces[iTri][0], n1 = neighfaces[iTri][1], n2 = neighfaces[iTri][2];
+
+    int n0max = -1, n1max = -1, n2max = -1;
+
+    n0max = get_max_index_sharedcorner(n0,nPrev,prevFaces,node2check,node,rK,neighfaces);
+    n1max = get_max_index_sharedcorner(n1,nPrev,prevFaces,node2check,node,rK,neighfaces);
+    n2max = get_max_index_sharedcorner(n2,nPrev,prevFaces,node2check,node,rK,neighfaces);
+
+    //return the maximum index including this tri and its 3 neighs
+    if(iTri > n0max && iTri > n1max && iTri > n2max) return iTri;
+    else if(n0max > n1max && n0max > n2max) return n0max;
+    else if(n1max > n2max ) return n1max;
+    else return n2max;
+}
 
 /* ---------------------------------------------------------------------- */
 

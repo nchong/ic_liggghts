@@ -34,6 +34,8 @@ See the README file in the top-level LAMMPS directory.
 #include "neigh_request.h"
 #include "pair.h"
 #include "math_extra.h"
+#include "fix_propertyGlobal.h"
+#include "fix_propertyPerAtom.h"
 
 using namespace LAMMPS_NS;
 
@@ -92,18 +94,12 @@ int FixHeatGran::setmask()
 /* ---------------------------------------------------------------------- */
 void FixHeatGran::updatePtrs()
 {
-  fppat=static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("Temp","property/peratom","scalar",0,0)]);
   Temp=fppat->vector_atom;
   vector_atom=Temp; 
 
-  fppahf=static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("heatFlux","property/peratom","scalar",0,0)]);
   heatFlux=fppahf->vector_atom;
 
-  fppahs=static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("heatSource","property/peratom","scalar",0,0)]);
   heatSource=fppahs->vector_atom;
-
-  fpgco=static_cast<FixPropertyGlobal*>(modify->fix[modify->find_fix_property("thermalConductivity","property/global","peratomtype",atom->ntypes,0)]);
-  fpgca=static_cast<FixPropertyGlobal*>(modify->fix[modify->find_fix_property("thermalCapacity","property/global","peratomtype",atom->ntypes,0)]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -129,6 +125,7 @@ void FixHeatGran::init()
     fixarg[7]="no";    
     sprintf(fixarg[8],"%f",T0);
     modify->add_fix(9,fixarg);
+    fppat=static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("Temp","property/peratom","scalar",0,0)]);
   }
 
   if (fppahf==NULL){
@@ -143,6 +140,7 @@ void FixHeatGran::init()
     fixarg[7]="yes";    
     fixarg[8]="0.";     
     modify->add_fix(9,fixarg);
+    fppahf=static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("heatFlux","property/peratom","scalar",0,0)]);
   }
 
   if (fppahs==NULL){
@@ -157,10 +155,14 @@ void FixHeatGran::init()
     fixarg[7]="no";    
     fixarg[8]="0.";     
     modify->add_fix(9,fixarg);
+    fppahs=static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("heatSource","property/peratom","scalar",0,0)]);
   }
   delete []fixarg;
 
   int nAtomTypes=atom->ntypes;
+
+  fpgco=static_cast<FixPropertyGlobal*>(modify->fix[modify->find_fix_property("thermalConductivity","property/global","peratomtype",atom->ntypes,0)]);
+  fpgca=static_cast<FixPropertyGlobal*>(modify->fix[modify->find_fix_property("thermalCapacity","property/global","peratomtype",atom->ntypes,0)]);
 
   updatePtrs();
 }
@@ -184,8 +186,8 @@ void FixHeatGran::post_force(int vflag)
   numneigh = force->pair->list->numneigh;
   firstneigh = force->pair->list->firstneigh;
 
-  double *radius = lmp->atom->radius;
-  double *rmass = lmp->atom->rmass;
+  double *radius = atom->radius;
+  double *rmass = atom->rmass;
   double **x = atom->x;
   int *type = atom->type;
   int nlocal = atom->nlocal;
@@ -293,3 +295,8 @@ double FixHeatGran::compute_scalar()
 }
 
 /* ---------------------------------------------------------------------- */
+
+void FixHeatGran::reset_dt()
+{
+    error->all("Adaptive time-stepping not implemented for fix heat/gran");
+}

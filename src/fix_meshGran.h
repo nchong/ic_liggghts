@@ -90,6 +90,7 @@ class FixMeshGran : public Fix {
   FILE* stl_file;
   class Input *mystl_input;
   void calcTriCharacteristics(int nTri,double ***node,double **cK,double ***ogK,double **ogKlen,double ***oKO,double *rK,double *Area,double **facenormal,int **neighfaces,int *contactInactive);
+  int get_max_index_sharedcorner(int iTri,int &nPrev,int *prevFaces,double *node2check,double ***node,double *rK,int **neighfaces);
 }; //end class
 
 }

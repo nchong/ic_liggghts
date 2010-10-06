@@ -5,7 +5,7 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
+   certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
@@ -32,6 +32,7 @@
 #include "lattice.h"
 #include "comm.h"
 #include "memory.h"
+#include "neighbor.h"
 #include "error.h"
 
 using namespace LAMMPS_NS;
@@ -45,7 +46,7 @@ using namespace LAMMPS_NS;
 enum{NO_REMAP,X_REMAP,V_REMAP};                   // same as fix_deform.cpp
 
 /* ----------------------------------------------------------------------
-   default is periodic 
+   default is periodic
 ------------------------------------------------------------------------- */
 
 Domain::Domain(LAMMPS *lmp) : Pointers(lmp)
@@ -64,16 +65,17 @@ Domain::Domain(LAMMPS *lmp) : Pointers(lmp)
   boundary[2][0] = boundary[2][1] = 0;
 
   triclinic = 0;
+  
   boxlo[0] = boxlo[1] = boxlo[2] = -0.5;
   boxhi[0] = boxhi[1] = boxhi[2] = 0.5;
   xy = xz = yz = 0.0;
 
   h[3] = h[4] = h[5] = 0.0;
   h_inv[3] = h_inv[4] = h_inv[5] = 0.0;
-  h_rate[0] = h_rate[1] = h_rate[2] = 
+  h_rate[0] = h_rate[1] = h_rate[2] =
     h_rate[3] = h_rate[4] = h_rate[5] = 0.0;
   h_ratelo[0] = h_ratelo[1] = h_ratelo[2] = 0.0;
-  
+
   prd_lamda[0] = prd_lamda[1] = prd_lamda[2] = 1.0;
   prd_half_lamda[0] = prd_half_lamda[1] = prd_half_lamda[2] = 0.5;
   boxlo_lamda[0] = boxlo_lamda[1] = boxlo_lamda[2] = 0.0;
@@ -102,6 +104,7 @@ void Domain::init()
 
   box_change = 0;
   if (nonperiodic == 2) box_change = 1;
+  
   for (int i = 0; i < modify->nfix; i++)
     if (modify->fix[i]->box_change) box_change = 1;
 
@@ -199,7 +202,7 @@ void Domain::set_global_box()
     h_inv[3] = -h[3] / (h[1]*h[2]);
     h_inv[4] = (h[3]*h[5] - h[1]*h[4]) / (h[0]*h[1]*h[2]);
     h_inv[5] = -h[5] / (h[0]*h[1]);
-    
+
     boxlo_bound[0] = MIN(boxlo[0],boxlo[0]+xy);
     boxlo_bound[0] = MIN(boxlo_bound[0],boxlo_bound[0]+xz);
     boxlo_bound[1] = MIN(boxlo[1],boxlo[1]+yz);
@@ -256,7 +259,7 @@ void Domain::set_local_box()
     if (myloc[0] < procgrid[0]-1)
       subhi[0] = boxlo[0] + (myloc[0]+1) * xprd / procgrid[0];
     else subhi[0] = boxhi[0];
-    
+
     sublo[1] = boxlo[1] + myloc[1] * yprd / procgrid[1];
     if (myloc[1] < procgrid[1]-1)
       subhi[1] = boxlo[1] + (myloc[1]+1) * yprd / procgrid[1];
@@ -292,7 +295,7 @@ void Domain::reset_box()
 
     double **x = atom->x;
     int nlocal = atom->nlocal;
-    
+
     for (int i = 0; i < nlocal; i++) {
       extent[0][0] = MIN(extent[0][0],x[i][0]);
       extent[0][1] = MAX(extent[0][1],x[i][0]);
@@ -465,7 +468,7 @@ void Domain::pbc()
 
 /* ----------------------------------------------------------------------
    minimum image convention
-   use 1/2 of box size as test 
+   use 1/2 of box size as test
    for triclinic, also add/subtract tilt factors in other dims as needed
 ------------------------------------------------------------------------- */
 
@@ -863,7 +866,7 @@ void Domain::set_lattice(int narg, char **arg)
 }
 
 /* ----------------------------------------------------------------------
-   create a new region 
+   create a new region
 ------------------------------------------------------------------------- */
 
 void Domain::add_region(int narg, char **arg)
@@ -876,7 +879,7 @@ void Domain::add_region(int narg, char **arg)
 
   if (nregion == maxregion) {
     maxregion += DELTA;
-    regions = (Region **) 
+    regions = (Region **)
       memory->srealloc(regions,maxregion*sizeof(Region *),"domain:regions");
   }
 
@@ -909,7 +912,7 @@ int Domain::find_region(char *name)
 }
 
 /* ----------------------------------------------------------------------
-   boundary settings from the input script 
+   boundary settings from the input script
 ------------------------------------------------------------------------- */
 
 void Domain::set_boundary(int narg, char **arg)
@@ -998,7 +1001,7 @@ void Domain::lamda2x(int n)
 {
   double **x = atom->x;
 
-  for (int i = 0; i < n; i++) { 
+  for (int i = 0; i < n; i++) {
     x[i][0] = h[0]*x[i][0] + h[5]*x[i][1] + h[4]*x[i][2] + boxlo[0];
     x[i][1] = h[1]*x[i][1] + h[3]*x[i][2] + boxlo[1];
     x[i][2] = h[2]*x[i][2] + boxlo[2];
@@ -1015,7 +1018,7 @@ void Domain::x2lamda(int n)
   double delta[3];
   double **x = atom->x;
 
-  for (int i = 0; i < n; i++) { 
+  for (int i = 0; i < n; i++) {
     delta[0] = x[i][0] - boxlo[0];
     delta[1] = x[i][1] - boxlo[1];
     delta[2] = x[i][2] - boxlo[2];

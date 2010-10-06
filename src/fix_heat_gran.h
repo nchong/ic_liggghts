@@ -1,20 +1,21 @@
 /* ----------------------------------------------------------------------
-   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
-   http://lammps.sandia.gov, Sandia National Laboratories
-   Steve Plimpton, sjplimp@sandia.gov
+LIGGGHTS - LAMMPS Improved for General Granular and Granular Heat
+Transfer Simulations
 
-   Copyright (2003) Sandia Corporation.  Under the terms of Contract
-   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under
-   the GNU General Public License.
+www.liggghts.com | www.cfdem.com
+Christoph Kloss, christoph.kloss@cfdem.com
 
-   See the README file in the top-level LAMMPS directory.
-------------------------------------------------------------------------- */
+LIGGGHTS is based on LAMMPS
+LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+http://lammps.sandia.gov, Sandia National Laboratories
+Steve Plimpton, sjplimp@sandia.gov
 
-/* ----------------------------------------------------------------------
-   Contributing autor: Christoph Kloss
-   Johannes Kepler University Linz, Austria
-   christoph.kloss@jku.at
+Copyright (2003) Sandia Corporation. Under the terms of Contract
+DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+certain rights in this software. This software is distributed under
+the GNU General Public License.
+
+See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 #ifdef FIX_CLASS
 
@@ -26,8 +27,6 @@ FixStyle(heat/gran,FixHeatGran)
 #define LMP_FIX_HEATGRAN_H
 
 #include "fix.h"
-#include "fix_propertyGlobal.h"
-#include "fix_propertyPerAtom.h"
 
 namespace LAMMPS_NS {
 
@@ -42,13 +41,14 @@ class FixHeatGran : public Fix {
   void final_integrate();
   void initial_integrate_respa(int,int,int);
   double compute_scalar();
+  void reset_dt();
 
  private:
-  FixPropertyPerAtom* fppat;
-  FixPropertyPerAtom* fppahf;
-  FixPropertyPerAtom* fppahs;
-  FixPropertyGlobal* fpgco;
-  FixPropertyGlobal* fpgca;
+  class FixPropertyPerAtom* fppat;
+  class FixPropertyPerAtom* fppahf;
+  class FixPropertyPerAtom* fppahs;
+  class FixPropertyGlobal* fpgco;
+  class FixPropertyGlobal* fpgca;
   double T0;              
   double *Temp;           
   double *heatFlux;       

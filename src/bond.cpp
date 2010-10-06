@@ -5,7 +5,7 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
+   certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
@@ -34,6 +34,8 @@ Bond::Bond(LAMMPS *lmp) : Pointers(lmp)
   maxeatom = maxvatom = 0;
   eatom = NULL;
   vatom = NULL;
+
+  ngranhistory = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -57,6 +59,18 @@ void Bond::init()
 }
 
 /* ----------------------------------------------------------------------
+   set number of history values
+------------------------------------------------------------------------- */
+
+void Bond::n_granhistory(int nhist)
+{
+    ngranhistory = nhist;
+    atom->n_bondhist = ngranhistory;
+
+    if(atom->nmax) error->all("This bond style must be defined before any atoms are added to the system");
+}
+
+/* ----------------------------------------------------------------------
    setup for energy, virial computation
    see integrate::ev_set() for values of eflag (0-3) and vflag (0-6)
 ------------------------------------------------------------------------- */
@@ -74,7 +88,7 @@ void Bond::ev_setup(int eflag, int vflag)
   vflag_either = vflag;
   vflag_global = vflag % 4;
   vflag_atom = vflag / 4;
-  
+
   // reallocate per-atom arrays if necessary
 
   if (eflag_atom && atom->nmax > maxeatom) {

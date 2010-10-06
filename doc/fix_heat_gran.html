@@ -1,12 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML>
 <HEAD>
-	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=iso-8859-1">
 	<TITLE></TITLE>
-	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Unix)">
 	<META NAME="CREATED" CONTENT="0;0">
-	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
-	<META NAME="CHANGED" CONTENT="20100420;13263000">
+	<META NAME="CHANGED" CONTENT="20101006;9075300">
 	<STYLE TYPE="text/css">
 	<!--
 		H3.western { font-family: "Albany", sans-serif }
@@ -56,6 +55,26 @@ between particles in contact and temperature update according to </FONT>
 is assumed that the Temperature within the particles is uniform. To
 make particles adiabatic (so they do not change the temperature), do
 not include them in the fix group.</FONT></P>
+<P><FONT FACE="Liberation Serif, serif">Thermal conductivity and
+specific thermal capacity must be defined for each atom type used in
+the simulation by means of <A HREF="fix_property.html">fix_property_global</A>
+commands:</FONT></P>
+<P STYLE="margin-bottom: 0in"><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>fix
+id all property/global thermalConductivity peratomtype value_1
+value_2 ... </FONT></FONT>
+</P>
+<P STYLE="margin-left: 0.49in"><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>(value_i=value
+for thermal conductivity of atom type i) </FONT></FONT>
+</P>
+<P STYLE="margin-bottom: 0in"><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>fix
+id all property/global thermalCapacity peratomtype value_1 value_2
+... </FONT></FONT>
+</P>
+<P STYLE="margin-left: 0.49in"><FONT FACE="DejaVu Sans Mono, sans-serif"><FONT SIZE=2>(value_i=value
+for thermal capacity of atom type i) </FONT></FONT>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
 <P><FONT FACE="Liberation Serif, serif">To set Temperature for a
 group of particles, you can use the set command with set keyword:
 'property/peratom' and set values: 'Temp T'. T is the temperature

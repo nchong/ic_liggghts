@@ -39,6 +39,9 @@ class Fix : protected Pointers {
                                  //      setting when a new atom is created
   int restart_pbc;               // 1 if fix moves atoms (except integrate)
                                  //      so write_restart must remap to PBC
+  int rad_mass_vary_flag;        // 1 if particle radius or mass varied by fix 
+  int just_created;              // 1 if fix was just created
+                                 //   ie no run yet since creation 
 
   int scalar_flag;               // 0/1 if compute_scalar() function exists
   int vector_flag;               // 0/1 if compute_vector() function exists

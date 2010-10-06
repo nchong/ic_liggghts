@@ -5,7 +5,7 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
+   certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
@@ -35,7 +35,7 @@ class Domain : protected Pointers {
                                          // 3 = shrink-wrap non-per w/ min
 
   int triclinic;		         // 0 = orthog box, 1 = triclinic
-
+  
                                          // orthogonal box
   double xprd,yprd,zprd;                 // global box dimensions
   double xprd_half,yprd_half,zprd_half;  // half dimensions

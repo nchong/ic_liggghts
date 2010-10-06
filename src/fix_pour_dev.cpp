@@ -44,6 +44,9 @@ using namespace LAMMPS_NS;
 
 #define EPSILON 0.001
 
+#define LMP_DEBUGMODE_FIXPOURDEV false
+#define LMP_DEBUG_OUT_FIXPOURDEV screen
+
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
@@ -417,7 +420,7 @@ void FixPourDev::pre_exchange()
 {
 
   int i;
-
+  
   // just return if should not be called on this timestep
 
   if (next_reneighbor != update->ntimestep) return;
@@ -428,6 +431,12 @@ void FixPourDev::pre_exchange()
 
   //init number of bodies to be inserted
   nnew = fpdd->random_init(nnew);
+
+  if(nnew == 0)
+  {
+      error->warning("Inserting no particle - void fraction or mass flow rate might be too low");
+      return;
+  }
 
   if (ninserted + nnew > ninsert) nnew = ninsert - ninserted;
 
@@ -473,9 +482,10 @@ void FixPourDev::pre_exchange()
 
   double **x = atom->x;
   double *radius = atom->radius;
+  int nlocal = atom->nlocal;
 
   ncount = 0;
-  for (i = 0; i < atom->nlocal; i++)
+  for (i = 0; i < nlocal; i++)
     if (overlap(i)) {
       xmine[ncount][0] = x[i][0];
       xmine[ncount][1] = x[i][1];
@@ -488,8 +498,7 @@ void FixPourDev::pre_exchange()
 
   double *ptr = NULL;
   if (ncount) ptr = xmine[0];
-  MPI_Allgatherv(ptr,7*ncount,MPI_DOUBLE,
-		 xnear[0],recvcounts,displs,MPI_DOUBLE,world);
+  MPI_Allgatherv(ptr,7*ncount,MPI_DOUBLE,xnear[0],recvcounts,displs,MPI_DOUBLE,world);
 
   // insert new atoms into xnear list, one by one
   // check against all nearby atoms and previously inserted ones
@@ -658,6 +667,7 @@ void FixPourDev::pre_exchange()
 
   if (ninserted < ninsert) next_reneighbor += nfreq;
   else next_reneighbor = 0;
+
 }
 
 /* ----------------------------------------------------------------------

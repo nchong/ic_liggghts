@@ -40,6 +40,8 @@ namespace LAMMPS_NS {
   };
   
 class FixPropertyGlobal : public Fix {
+ friend class Modify;
+
  public:
   FixPropertyGlobal(class LAMMPS *, int, char **);
   ~FixPropertyGlobal();
@@ -48,16 +50,19 @@ class FixPropertyGlobal : public Fix {
   double memory_usage();
   double compute_scalar();
   double compute_vector(int);
+  double compute_vector_modified(int);
   double compute_array(int,int);
+  double compute_array_modified(int,int);
+  void vector_modify(int,double);
+  void array_modify(int,int,double);
 
   bool checkCorrectness(int,char*,int,int);
-
+ private:
   char *variablename;   
   int svmStyle;      
   int nvalues;
   double *values; 
-
- private:
+  double *values_recomputed; 
 
 }; //end class
 

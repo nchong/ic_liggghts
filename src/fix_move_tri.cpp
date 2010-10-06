@@ -49,7 +49,7 @@ FixMoveTri::FixMoveTri(LAMMPS *lmp, int narg, char **arg) :
   
   if (screen && comm->me==0) fprintf(screen,"Note: A fix move/mesh/gran error or warning may appear as fix move error or warning\n");
 
-  if (narg < 9) error->all("Illegal fix move/mesh/gran command, not enough arguments");
+  if (narg < 8) error->all("Illegal fix move/mesh/gran command, not enough arguments");
   if (!atom->radius_flag || !atom->rmass_flag)
     error->all("Fix move/mesh/gran requires atom attributes radius, rmass (atom style granular)");
 
@@ -57,8 +57,15 @@ FixMoveTri::FixMoveTri(LAMMPS *lmp, int narg, char **arg) :
   skinSafetyFactor=atoi(arg[narg-1]);
 
   //the arg before must be a valid fix of style fix mesh/gran 
+  //if not found, assume that the last arg is the reference to the fix mesh gran
   char* f_id=arg[narg-2];
   int f_i=modify->find_fix(f_id);
+  if (f_i==-1)
+  {
+      f_id=arg[narg-1];
+      f_i=modify->find_fix(f_id);
+  }
+
   if (f_i==-1) error->all("Can not find the fix mesh/gran to apply the fix move/mesh/gran to");
   if (strncmp(modify->fix[f_i]->style,"mesh/gran",8)!=0) error->all("Can apply fix move/mesh/gran only to a fix of type fix mesh/gran");
 

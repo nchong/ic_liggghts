@@ -249,6 +249,20 @@ void Modify::init()
 
 void Modify::setup(int vflag)
 {
+  
+  int nlocal = atom->nlocal;
+  int *mask = atom->mask;
+  for (int i = 0; i < nfix; i++)
+  {
+     if (fix[i]->just_created && fix[i]->create_attribute)
+     {
+         fix[i]->just_created = 0;
+         for(int j = 0; j < nlocal; j++)
+           if(mask[j] & fix[i]->groupbit) fix[i]->set_arrays(j);
+     }
+
+  }
+
   if (update->whichflag == 1)
     for (int i = 0; i < nfix; i++) fix[i]->setup(vflag);
   else if (update->whichflag == 2)
@@ -683,7 +697,7 @@ int Modify::find_fix_property(const char *varname,const char *style,const char *
 {
   int ifix,svm;
   int ret;
-  char *errmsg=new char[100];
+  char errmsg[200];
 
   if( (strcmp(style,"property/global")!=0) && (strcmp(style,"property/peratom")!=0) ) error->all("Valid styles for find_fix_property are 'property/global' and 'property/peratom'");
 

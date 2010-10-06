@@ -78,6 +78,8 @@ FixWallGranHookeHistory::FixWallGranHookeHistory(LAMMPS *lmp, int narg, char **a
   dampflag = atoi(arg[3]);
   cohesionflag = atoi(arg[4]);
 
+  lo = hi = 0.0;
+
   if (cohesionflag < 0 || cohesionflag > 1 || dampflag < 0 || dampflag > 1)
     error->all("Illegal fix wall/gran command");
 
@@ -143,6 +145,8 @@ FixWallGranHookeHistory::FixWallGranHookeHistory(LAMMPS *lmp, int narg, char **a
     atom_type_wall=atoi(arg[iarg+2]);
     iarg += 3;
   }
+
+  if(lo > hi) error->all("Fix wall/gran: lo value of wall position must be < hi value");
 
   // check for trailing keyword/values
 
@@ -611,13 +615,14 @@ inline void FixWallGranHookeHistory::shear_transition(int i,int iFMG,int iTri)
         int iPartner = partner[i][j][1];
         if(FixMeshGranList[iFMG]->STLdata->are_coplanar_neighs(iTri,iPartner))
         {
-            double shrmagsqr = shear[i][iPartner][0]*shear[i][iPartner][0]+shear[i][iPartner][1]*shear[i][iPartner][1]+shear[i][iPartner][2]*shear[i][iPartner][2];
+            
+            double shrmagsqr = shear[i][j][0]*shear[i][j][0]+shear[i][j][1]*shear[i][j][1]+shear[i][j][2]*shear[i][j][2];
             if(shrmagsqr > 0.)
             {
-                shear[i][npartners[i]-1][0] = shear[i][iPartner][0];
-                shear[i][npartners[i]-1][1] = shear[i][iPartner][1];
-                shear[i][npartners[i]-1][2] = shear[i][iPartner][2];
-                //error->all("coplanar neigh transition found,swapping history if shearmag >0");
+                shear[i][npartners[i]-1][0] = shear[i][j][0];
+                shear[i][npartners[i]-1][1] = shear[i][j][1];
+                shear[i][npartners[i]-1][2] = shear[i][j][2];
+                
             }
         }
     }

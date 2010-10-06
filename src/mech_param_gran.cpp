@@ -118,7 +118,7 @@ void MechParamGran::getMaterialParams(int charVelFlag, int cohesionflag)
 
   //error check
   if(min_type!=1) error->all("Atom types must start from 1 for granular simulations");
-  if(max_type!=atom->ntypes) error->all("Please increase the number of atom types in the 'create_box' command to match the number of atom types you use in the simulation");
+  if(max_type > atom->ntypes) error->all("Please increase the number of atom types in the 'create_box' command to match the number of atom types you use in the simulation");
 
   //Get pointer to the fixes that have the material properties
   
@@ -159,7 +159,7 @@ void MechParamGran::getMaterialParams(int charVelFlag, int cohesionflag)
           //omitting veff here
       }
   }
-  if(charVelFlag) charVel=charVel1->values[0];
+  if(charVelFlag) charVel=charVel1->compute_scalar();
 
   //fprintf(lmp->screen,"Yeff[1][1]=%f Geff[1][1]=%f coeffRestLog[1][1]=%f coeffFrict[1][1]=%f betaeff[1][1]=%f\n",Yeff[1][1],Geff[1][1],coeffRestLog[1][1],coeffFrict[1][1],betaeff[1][1]);
 }

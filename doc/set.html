@@ -1,12 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML>
 <HEAD>
-	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=iso-8859-1">
 	<TITLE></TITLE>
-	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Unix)">
 	<META NAME="CREATED" CONTENT="0;0">
-	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
-	<META NAME="CHANGED" CONTENT="20100415;22293100">
+	<META NAME="CHANGED" CONTENT="20101006;9244500">
 	<STYLE TYPE="text/css">
 	<!--
 		H3.western { font-family: "Albany", sans-serif }
@@ -38,11 +37,12 @@ Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
 	may be appended 
 	</P>
 	<LI><P>keyword = <I>type</I> or <I>type/fraction</I> or <I>mol</I>
-	or <I>x</I> or <I>y</I> or <I>z</I> or <I>vx</I> or <I>vy</I> or <I>vz</I>
-	or <I>charge</I> or <I>dipole</I> or <I>dipole/random</I> or
-	<I>quat/random</I> or <I>diameter</I> or <I>density</I> or <I>volume</I>
-	or <I>image</I> or <I>bond</I> or <I>angle</I> or <I>dihedral</I> or
-	<I>improper</I> or <I>property/peratom</I></P>
+	or <I>x</I> or <I>y</I> or <I>z</I> or <I>vx</I> or <I>vy</I> or <I>vz
+	or omegax or omegay or omegaz</I> or <I>charge</I> or <I>dipole</I>
+	or <I>dipole/random</I> or <I>quat/random</I> or <I>diameter</I> or
+	<I>density</I> or <I>volume</I> or <I>image</I> or <I>bond</I> or
+	<I>angle</I> or <I>dihedral</I> or <I>improper</I> or
+	<I>property/peratom</I></P>
 	<PRE>  <I>type</I> value = atom type
   <I>type/fraction</I> values = type fraction seed
     type = new atom type
@@ -50,7 +50,7 @@ Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
     seed = random # seed (positive integer)
   <I>mol</I> value = molecule ID
   <I>x</I>,<I>y</I>,<I>z</I> value = atom coordinate (distance units)
-  <I>vx</I>,<I>vy</I>,<I>vz</I> value = velocity component (velocity units)
+  <I>vx</I>,<I>vy</I>,<I>vz</I> value = velocity component (velocity units)<BR>  omega<I>x</I>,omega<I>y</I>,omega<I>z</I> value = omega component (rad/time units)
   <I>charge</I> value = atomic charge (charge units)
   <I>dipole</I> values = x y z
     x,y,z = orientation of dipole moment vector
@@ -85,10 +85,11 @@ set atom 1492 type 3
 set property/peratom Temp 300.5 </PRE><P>
 <B>LIGGGHTS vs. LAMMPS Info: </B>
 </P>
-<P STYLE="margin-bottom: 0.2in; font-weight: normal">This command
-offers a new keyword <I>property/peratom </I>to enable the set
+<P STYLE="margin-bottom: 0.2in"><SPAN STYLE="font-weight: normal">This
+command offers a new keyword </SPAN><I><SPAN STYLE="font-weight: normal">property/peratom
+</SPAN></I><SPAN STYLE="font-weight: normal">to enable the set
 command to assign values to properties defined by a <A HREF="fix_property.html">fix
-property/peratom</A>.</P>
+property/peratom</A>.</SPAN></P>
 <P><B>Description:</B> 
 </P>
 <P>Set one or more properties of one or more atoms. Since atom

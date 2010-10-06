@@ -79,6 +79,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
 
   num_bond = NULL;
   bond_type = bond_atom = NULL;
+  bond_hist = NULL;
 
   num_angle = NULL;
   angle_type = angle_atom1 = angle_atom2 = angle_atom3 = NULL;
@@ -98,6 +99,7 @@ Atom::Atom(LAMMPS *lmp) : Pointers(lmp)
   q_flag = mu_flag = 0;
   quat_flag = omega_flag = angmom_flag = torque_flag = 0;
   radius_flag = density_flag = rmass_flag = vfrac_flag = 0;
+  n_bondhist = 0;
 
   // ntype-length arrays
 
@@ -184,6 +186,7 @@ Atom::~Atom()
   memory->sfree(num_bond);
   memory->destroy_2d_int_array(bond_type);
   memory->destroy_2d_int_array(bond_atom);
+  memory->destroy_3d_double_array(bond_hist);
 
   memory->sfree(num_angle);
   memory->destroy_2d_int_array(angle_type);

@@ -179,7 +179,7 @@ void Verlet::setup_minimal(int flag)
 void Verlet::run(int n)
 {
   int nflag,ntimestep,sortflag;
-
+  
   int n_post_integrate = modify->n_post_integrate;
   int n_pre_exchange = modify->n_pre_exchange;
   int n_pre_neighbor = modify->n_pre_neighbor;
@@ -216,11 +216,13 @@ void Verlet::run(int n)
       domain->pbc();
       if (domain->box_change) {
         domain->reset_box();
+        
         comm->setup();
         if (neighbor->style) neighbor->setup_bins();
       }
       timer->stamp();
       comm->exchange();
+      
       if (sortflag && ntimestep >= atom->nextsort) atom->sort();
       comm->borders();
       if (triclinic) domain->lamda2x(atom->nlocal+atom->nghost);

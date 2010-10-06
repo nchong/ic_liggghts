@@ -66,6 +66,7 @@ FixPropertyGlobal::FixPropertyGlobal(LAMMPS *lmp, int narg, char **arg) :
     nvalues = narg - 5 - darg;
     
     values = new double[nvalues];
+    values_recomputed = new double[nvalues];
     for (int j=0;j<nvalues;j++) values[j] = myAtof(arg[5+darg+j]);
 
     if (svmStyle==FIXPROPERTYTYPE_GLOBAL_SCALAR) scalar_flag=1;
@@ -123,6 +124,18 @@ double FixPropertyGlobal::compute_vector(int i)
     return values[i];
 }
 
+void FixPropertyGlobal::vector_modify(int i,double val)
+{
+    if (i>(nvalues-1))error->all("Trying to access vector in fix property/global, but index out of bounds");
+    values_recomputed[i] = val;
+}
+
+double FixPropertyGlobal::compute_vector_modified(int i)
+{
+    if (i>(nvalues-1))error->all("Trying to access vector in fix property/global, but index out of bounds");
+    return values_recomputed[i];
+}
+
 /* ---------------------------------------------------------------------- */
 
 double FixPropertyGlobal::compute_array(int i, int j) //i is row, j is column
@@ -136,6 +149,31 @@ double FixPropertyGlobal::compute_array(int i, int j) //i is row, j is column
 
     return values[ind];
 }
+
+void FixPropertyGlobal::array_modify(int i, int j,double val) //i is row, j is column
+{
+    if (i>(size_array_rows-1))error->all("Trying to access matrix in fix property/global, but row index out of bounds");
+    if (j>(size_array_cols-1))error->all("Trying to access matrix in fix property/global, but column index out of bounds");
+
+    int ind;
+    if (i==0) ind=j;
+    else ind =  ((i-1)*size_array_cols)+j;
+
+    values_recomputed[ind] = val;
+}
+
+double FixPropertyGlobal::compute_array_modified(int i, int j) //i is row, j is column
+{
+    if (i>(size_array_rows-1))error->all("Trying to access matrix in fix property/global, but row index out of bounds");
+    if (j>(size_array_cols-1))error->all("Trying to access matrix in fix property/global, but column index out of bounds");
+
+    int ind;
+    if (i==0) ind=j;
+    else ind =  ((i-1)*size_array_cols)+j;
+
+    return values_recomputed[ind];
+}
+
 /* ---------------------------------------------------------------------- */
 
 int FixPropertyGlobal::setmask()

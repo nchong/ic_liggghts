@@ -46,6 +46,7 @@ FixMove::FixMove(LAMMPS *lmp, int narg, char **arg) :
   peratom_freq = 1;
   time_integrate = 1;
   time_depend = 1;
+  create_attribute = 1;
 
   // parse args
 
@@ -251,12 +252,8 @@ FixMove::FixMove(LAMMPS *lmp, int narg, char **arg) :
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
 
-  for (int i = 0; i < nlocal; i++) {
-    if (mask[i] & groupbit) domain->unmap(x[i],image[i],xoriginal[i]);
-    else xoriginal[i][0] = xoriginal[i][1] = xoriginal[i][2] = 0.0;
-  }
-
   time_origin = update->ntimestep;
+  reset_dt_flag = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -292,6 +289,86 @@ int FixMove::setmask()
   mask |= FINAL_INTEGRATE;
   mask |= FINAL_INTEGRATE_RESPA;
   return mask;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixMove::set_arrays(int i)
+{
+  //LIGGGHTS: set arrays is generally called out of Modify::setup for each particle for first run after fix creation
+  //LAMMPS and LIGGGHTS: set arrays is generally called for each new particle that is created
+
+  double **x = atom->x;
+  int *mask = atom->mask;
+  int *image = atom->image;
+
+  //particles that already exist at fix creation time
+  if(update->ntimestep == time_origin)
+  {
+      if (mask[i] & groupbit) domain->unmap(x[i],image[i],xoriginal[i]);
+      else xoriginal[i][0] = xoriginal[i][1] = xoriginal[i][2] = 0.0;
+  }
+  //particles added after fix creation
+  //apply inverse operation (translation, rotation, etc)
+  //throw error for variable style as can not inverse time here
+  else
+  {
+      if (mask[i] & groupbit)
+      {
+          domain->unmap(x[i],image[i],xoriginal[i]);
+
+          //since update does not know absolute time, varying time-step size and adding particles dont fit together
+          if (reset_dt_flag) error->all("Fix move prohibits varying time-step size if atoms are added after defining the fix move");
+          double dT = update->dt * (update->ntimestep - time_origin);
+
+          if(mstyle == VARIABLE) error->all("Adding atoms after defining a fix move with style 'variable' is not allowed");
+          else if(mstyle == LINEAR) {
+              if(vxflag) xoriginal[i][0] -= vx * dT;
+              if(vyflag) xoriginal[i][1] -= vy * dT;
+              if(vzflag) xoriginal[i][2] -= vz * dT;
+          }else if(mstyle == WIGGLE){
+            double arg = omega_rotate * dT;
+            double sine = sin(arg);
+            double cosine = cos(arg);
+            if (axflag) xoriginal[i][0] -= ax*sine;
+            if (ayflag) xoriginal[i][1] -= ay*sine;
+            if (azflag) xoriginal[i][2] -= az*sine;
+          }else if(mstyle == ROTATE) {
+            double a[3],b[3],c[3],d[3],disp[3],ddotr;
+            double arg = - omega_rotate * dT;
+            double sine = sin(arg);
+            double cosine = cos(arg);
+            d[0] = x[i][0] - point[0];
+            d[1] = x[i][1] - point[1];
+            d[2] = x[i][2] - point[2];
+            ddotr = d[0]*runit[0] + d[1]*runit[1] + d[2]*runit[2];
+            c[0] = ddotr*runit[0];
+            c[1] = ddotr*runit[1];
+            c[2] = ddotr*runit[2];
+
+            a[0] = d[0] - c[0];
+            a[1] = d[1] - c[1];
+            a[2] = d[2] - c[2];
+            b[0] = runit[1]*a[2] - runit[2]*a[1];
+            b[1] = runit[2]*a[0] - runit[0]*a[2];
+            b[2] = runit[0]*a[1] - runit[1]*a[0];
+            disp[0] = a[0]*cosine  + b[0]*sine;
+            disp[1] = a[1]*cosine  + b[1]*sine;
+            disp[2] = a[2]*cosine  + b[2]*sine;
+
+            xoriginal[i][0] = point[0] + c[0] + disp[0];
+            xoriginal[i][1] = point[1] + c[1] + disp[1];
+            xoriginal[i][2] = point[2] + c[2] + disp[2];
+          }
+      }
+      else xoriginal[i][0] = xoriginal[i][1] = xoriginal[i][2] = 0.0;
+  }
+
+}
+
+void FixMove::reset_dt()
+{
+    reset_dt_flag = 1;
 }
 
 /* ---------------------------------------------------------------------- */

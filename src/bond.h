@@ -5,7 +5,7 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
+   certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
@@ -47,8 +47,12 @@ class Bond : protected Pointers {
   int vflag_either,vflag_global,vflag_atom;
   int maxeatom,maxvatom;
 
+  void n_granhistory(int);
   void ev_setup(int, int);
   void ev_tally(int, int, int, int, double, double, double, double, double);
+
+ private:
+   int ngranhistory; //0 if not a granular history bond, # of hist values if >0
 };
 
 }

@@ -125,6 +125,7 @@ Neighbor::Neighbor(LAMMPS *lmp) : Pointers(lmp)
 
   maxbond = 0;
   bondlist = NULL;
+  bondhistlist = NULL; 
   maxangle = 0;
   anglelist = NULL;
   maxdihedral = 0;
@@ -173,6 +174,7 @@ Neighbor::~Neighbor()
   memory->sfree(old_requests);
 
   memory->destroy_2d_int_array(bondlist);
+   memory->destroy_2d_double_array(bondhistlist);
   memory->destroy_2d_int_array(anglelist);
   memory->destroy_2d_int_array(dihedrallist);
   memory->destroy_2d_int_array(improperlist);
@@ -638,7 +640,8 @@ void Neighbor::init()
   if (atom->molecular && atom->nbonds && maxbond == 0) {
     if (nprocs == 1) maxbond = atom->nbonds;
     else maxbond = static_cast<int> (LB_FACTOR * atom->nbonds / nprocs);
-    bondlist = memory->create_2d_int_array(maxbond,3,"neigh:bondlist");
+    bondlist = memory->create_2d_int_array(maxbond,4,"neigh:bondlist");  
+    if(atom->n_bondhist) bondhistlist = memory->create_2d_double_array(maxbond,atom->n_bondhist,"neigh:bondhistlist");  
   }
 
   if (atom->molecular && atom->nangles && maxangle == 0) {

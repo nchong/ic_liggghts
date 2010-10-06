@@ -255,6 +255,7 @@ void Comm::setup()
     prd = domain->prd;
     sublo = domain->sublo;
     subhi = domain->subhi;
+    
     cutghost[0] = cutghost[1] = cutghost[2] = cut;
 
     if (style == MULTI) {
@@ -570,12 +571,12 @@ void Comm::exchange()
     i = nsend = 0;
 
     while (i < nlocal) {
-      if (x[i][dim] < lo || x[i][dim] >= hi) {
-	if (nsend > maxsend) grow_send(nsend,1);
-	nsend += avec->pack_exchange(i,&buf_send[nsend]);
-	avec->copy(nlocal-1,i);
-	nlocal--;
-      } else i++;
+          if (x[i][dim] < lo || x[i][dim] >= hi) {
+            if (nsend > maxsend) grow_send(nsend,1);
+            nsend += avec->pack_exchange(i,&buf_send[nsend]);
+            avec->copy(nlocal-1,i);
+            nlocal--;
+          } else i++;
     }
     atom->nlocal = nlocal;
 

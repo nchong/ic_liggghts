@@ -31,7 +31,6 @@ class FixAdapt : public Fix {
   int setmask();
   void init();
   void pre_force(int);
-  int diamflag;
 
  private:
   int nadapt;

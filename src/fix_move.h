@@ -5,7 +5,7 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
+   certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
@@ -30,6 +30,7 @@ class FixMove : public Fix {
   ~FixMove();
   int setmask();
   void init();
+  void set_arrays(int);
   void initial_integrate(int);
   void final_integrate();
   void initial_integrate_respa(int, int, int);
@@ -44,6 +45,7 @@ class FixMove : public Fix {
   void unpack_restart(int, int);
   int maxsize_restart();
   int size_restart(int);
+  void reset_dt();
 
  private:
   char *xvarstr,*yvarstr,*zvarstr,*vxvarstr,*vyvarstr,*vzvarstr;
@@ -57,6 +59,7 @@ class FixMove : public Fix {
   int xvarstyle,yvarstyle,zvarstyle,vxvarstyle,vyvarstyle,vzvarstyle;
   int omega_flag,nlevels_respa;
   int time_origin;
+  int reset_dt_flag;
 
   double **xoriginal;         // original coords of atoms
   int displaceflag,velocityflag;

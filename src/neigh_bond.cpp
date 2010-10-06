@@ -1,14 +1,21 @@
 /* ----------------------------------------------------------------------
-   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
-   http://lammps.sandia.gov, Sandia National Laboratories
-   Steve Plimpton, sjplimp@sandia.gov
+LIGGGHTS - LAMMPS Improved for General Granular and Granular Heat
+Transfer Simulations
 
-   Copyright (2003) Sandia Corporation.  Under the terms of Contract
-   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
-   the GNU General Public License.
+www.liggghts.com | www.cfdem.com
+Christoph Kloss, christoph.kloss@cfdem.com
 
-   See the README file in the top-level LAMMPS directory.
+LIGGGHTS is based on LAMMPS
+LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+http://lammps.sandia.gov, Sandia National Laboratories
+Steve Plimpton, sjplimp@sandia.gov
+
+Copyright (2003) Sandia Corporation. Under the terms of Contract
+DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+certain rights in this software. This software is distributed under
+the GNU General Public License.
+
+See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
 #include "neighbor.h"
@@ -32,8 +39,10 @@ void Neighbor::bond_all()
   int *num_bond = atom->num_bond;
   int **bond_atom = atom->bond_atom;
   int **bond_type = atom->bond_type;
+  double ***bond_hist = atom->bond_hist;
   int *tag = atom->tag;
   int newton_bond = force->newton_bond;
+  int n_bondhist = atom->n_bondhist;
 
   nbondlist = 0;
 
@@ -41,21 +50,30 @@ void Neighbor::bond_all()
     for (m = 0; m < num_bond[i]; m++) {
       atom1 = atom->map(bond_atom[i][m]);
       if (atom1 == -1) {
-	char str[128];
-	sprintf(str,"Bond atoms %d %d missing on proc %d at step %d",
-		tag[i],bond_atom[i][m],me,update->ntimestep);
-	error->one(str);
+        char str[128];
+        sprintf(str,"Bond atoms %d %d missing on proc %d at step %d",
+            tag[i],bond_atom[i][m],me,update->ntimestep);
+        error->one(str);
       }
       if (newton_bond || i < atom1) {
-	if (nbondlist == maxbond) {
-	  maxbond += BONDDELTA;
-	  bondlist = memory->grow_2d_int_array(bondlist,maxbond,3,
-					       "neighbor:bondlist");
-	}
-	bondlist[nbondlist][0] = i;
-	bondlist[nbondlist][1] = atom1;
-	bondlist[nbondlist][2] = bond_type[i][m];
-	nbondlist++;
+        if (nbondlist == maxbond) {
+          maxbond += BONDDELTA;
+          bondlist = memory->grow_2d_int_array(bondlist,maxbond,4,"neighbor:bondlist"); 
+          if(atom->n_bondhist) bondhistlist = memory->grow_2d_double_array(bondhistlist,maxbond,atom->n_bondhist,"neighbor:bondhistlist");  
+        }
+        //fprintf(screen,"adding pair %d %d to bondlist\n",i,atom1);
+        bondlist[nbondlist][0] = i;
+        bondlist[nbondlist][1] = atom1;
+        bondlist[nbondlist][2] = bond_type[i][m];
+        bondlist[nbondlist][3] = 0;
+        if(n_bondhist) {
+            for(int j = 0; j < n_bondhist; j++)
+            {
+                bondhistlist[nbondlist][j] = bond_hist[i][m][j];
+                //fprintf(screen,"setting hist to %f\n",bond_hist[i][m][j]);
+            }
+        }
+        nbondlist++;
       }
     }
 }
@@ -70,8 +88,10 @@ void Neighbor::bond_partial()
   int *num_bond = atom->num_bond;
   int **bond_atom = atom->bond_atom;
   int **bond_type = atom->bond_type;
+  double ***bond_hist = atom->bond_hist;
   int *tag = atom->tag;
   int newton_bond = force->newton_bond;
+  int n_bondhist = atom->n_bondhist;
 
   nbondlist = 0;
 
@@ -80,21 +100,26 @@ void Neighbor::bond_partial()
       if (bond_type[i][m] <= 0) continue;
       atom1 = atom->map(bond_atom[i][m]);
       if (atom1 == -1) {
-	char str[128];
-	sprintf(str,"Bond atoms %d %d missing on proc %d at step %d",
-		tag[i],bond_atom[i][m],me,update->ntimestep);
-	error->one(str);
+        char str[128];
+        sprintf(str,"Bond atoms %d %d missing on proc %d at step %d",
+            tag[i],bond_atom[i][m],me,update->ntimestep);
+        error->one(str);
       }
       if (newton_bond || i < atom1) {
-	if (nbondlist == maxbond) {
-	  maxbond += BONDDELTA;
-	  bondlist = memory->grow_2d_int_array(bondlist,maxbond,3,
-					       "neighbor:bondlist");
-	}
-	bondlist[nbondlist][0] = i;
-	bondlist[nbondlist][1] = atom1;
-	bondlist[nbondlist][2] = bond_type[i][m];
-	nbondlist++;
+        if (nbondlist == maxbond) {
+          maxbond += BONDDELTA;
+          bondlist = memory->grow_2d_int_array(bondlist,maxbond,4,
+                               "neighbor:bondlist");
+        }
+        bondlist[nbondlist][0] = i;
+        bondlist[nbondlist][1] = atom1;
+        bondlist[nbondlist][2] = bond_type[i][m];
+        bondlist[nbondlist][3] = 0;
+        if(n_bondhist) {
+            for(int j = 0; j < n_bondhist; j++)
+                bondhistlist[nbondlist][j] = bond_hist[i][m][j];
+        }
+        nbondlist++;
       }
     }
 }
@@ -217,11 +242,11 @@ void Neighbor::dihedral_all()
 		me,update->ntimestep);
 	error->one(str);
       }
-      if (newton_bond || 
+      if (newton_bond ||
 	  (i <= atom1 && i <= atom2 && i <= atom3 && i <= atom4)) {
 	if (ndihedrallist == maxdihedral) {
 	  maxdihedral += BONDDELTA;
-	  dihedrallist = 
+	  dihedrallist =
 	    memory->grow_2d_int_array(dihedrallist,maxdihedral,5,
 				      "neighbor:dihedrallist");
 	}
@@ -267,11 +292,11 @@ void Neighbor::dihedral_partial()
 		me,update->ntimestep);
 	error->one(str);
       }
-      if (newton_bond || 
+      if (newton_bond ||
 	  (i <= atom1 && i <= atom2 && i <= atom3 && i <= atom4)) {
 	if (ndihedrallist == maxdihedral) {
 	  maxdihedral += BONDDELTA;
-	  dihedrallist = 
+	  dihedrallist =
 	    memory->grow_2d_int_array(dihedrallist,maxdihedral,5,
 				      "neighbor:dihedrallist");
 	}
@@ -316,11 +341,11 @@ void Neighbor::improper_all()
 		me,update->ntimestep);
 	error->one(str);
       }
-      if (newton_bond || 
+      if (newton_bond ||
 	  (i <= atom1 && i <= atom2 && i <= atom3 && i <= atom4)) {
 	if (nimproperlist == maximproper) {
 	  maximproper += BONDDELTA;
-	  improperlist = 
+	  improperlist =
 	    memory->grow_2d_int_array(improperlist,maximproper,5,
 				      "neighbor:improperlist");
 	}
@@ -366,11 +391,11 @@ void Neighbor::improper_partial()
 		me,update->ntimestep);
 	error->one(str);
       }
-      if (newton_bond || 
+      if (newton_bond ||
 	  (i <= atom1 && i <= atom2 && i <= atom3 && i <= atom4)) {
 	if (nimproperlist == maximproper) {
 	  maximproper += BONDDELTA;
-	  improperlist = 
+	  improperlist =
 	    memory->grow_2d_int_array(improperlist,maximproper,5,
 				      "neighbor:improperlist");
 	}

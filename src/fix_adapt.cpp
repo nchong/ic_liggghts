@@ -42,8 +42,6 @@ FixAdapt::FixAdapt(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
 
   nadapt = 0;
 
-  diamflag = 0;
-
   int iarg = 4;
   while (iarg < narg) {
     if (strcmp(arg[iarg],"pair") == 0) {
@@ -101,7 +99,7 @@ FixAdapt::FixAdapt(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
       param[nadapt] = new char[n];
       strcpy(param[nadapt],arg[iarg+1]);
       
-      if (strcmp(param[nadapt],"diameter") == 0)	diamflag = 1;
+      if (strcmp(param[nadapt],"diameter") == 0)	rad_mass_vary_flag = 1;
       n = strlen(arg[iarg+2]) + 1;
       var[nadapt] = new char[n];
       strcpy(var[nadapt],arg[iarg+2]);

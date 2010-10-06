@@ -23,6 +23,7 @@
 #include "region.h"
 #include "error.h"
 #include "modify.h"
+#include "fix.h"
 
 using namespace LAMMPS_NS;
 
@@ -201,6 +202,9 @@ void CreateAtoms::add_single()
       coord[1] >= sublo[1] && coord[1] < subhi[1] &&
       coord[2] >= sublo[2] && coord[2] < subhi[2])
     atom->avec->create_atom(itype,xone);
+    
+	  for (int j = 0; j < modify->nfix; j++)
+        if (modify->fix[j]->create_attribute) modify->fix[j]->set_arrays(atom->nlocal-1);
 }
 
 /* ----------------------------------------------------------------------
@@ -350,5 +354,8 @@ void CreateAtoms::add_many()
 	  // add the atom to my list of atoms
 
 	  atom->avec->create_atom(basistype[m],x);
+	  
+	  for (int k = 0; k < modify->nfix; k++)
+        if (modify->fix[k]->create_attribute) modify->fix[k]->set_arrays(atom->nlocal-1);
 	}
 }

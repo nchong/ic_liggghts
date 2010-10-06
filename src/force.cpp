@@ -199,10 +199,11 @@ void Force::create_bond(const char *style)
   delete [] bond_style;
   if (bond) delete bond;
 
-  bond = new_bond(style);
   int n = strlen(style) + 1;
   bond_style = new char[n];
   strcpy(bond_style,style);
+
+  bond = new_bond(style);
 }
 
 /* ----------------------------------------------------------------------
