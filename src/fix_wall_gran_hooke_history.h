@@ -71,6 +71,7 @@ class FixWallGranHookeHistory : public Fix {
 
  protected:
   int atom_type_wall;
+  double Temp_wall;
   int wallstyle,pairstyle,wiggle,wshear,axis;
   int dampflag,cohesionflag;
 
@@ -98,6 +99,15 @@ class FixWallGranHookeHistory : public Fix {
 
   class MechParamGran *mpg;
 
+  class FixPropertyPerAtom *fppa_T;
+  class FixPropertyPerAtom *fppa_hf;
+  double *Temp_p;
+  double *heatflux;
+  const double *th_cond;
+  double const* const* deltan_ratio;
+
+  void init_heattransfer();
+  void addHeatFlux(int, double,double, int);
   virtual void compute_force(int, double, double, double, double, double *, double *, double *, double *, double *, double, double, double *,
                                   double, double, double, double, double);
   virtual void addCohesionForce(int &, double &, double &);

@@ -40,6 +40,7 @@ class FixHeatGran : public Fix {
   void post_force(int);
   void final_integrate();
   void initial_integrate_respa(int,int,int);
+  void initial_integrate(int);
   double compute_scalar();
   void reset_dt();
 

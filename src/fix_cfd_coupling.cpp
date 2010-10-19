@@ -27,9 +27,15 @@ See the README file in the top-level LAMMPS directory.
 #include "memory.h"
 #include "modify.h"
 #include "math.h"
+#include "comm.h"
 #include "myvector.h"
 #include "fix_cfd_coupling.h"
-#include "style_datacoupling.h"
+#include "fix_propertyGlobal.h"
+#include "fix_propertyPerAtom.h"
+#include "fix_cfd_coupling.h"
+#include "cfd_regionmodel.h"
+#include "style_cfd_datacoupling.h"
+#include "style_cfd_regionmodel.h"
 
 using namespace LAMMPS_NS;
 
@@ -42,7 +48,7 @@ FixCfdCoupling::FixCfdCoupling(LAMMPS *lmp, int narg, char **arg) :
 {
   for(int ii=0;ii<modify->nfix;ii++)
   {
-      if(strcmp(modify->fix[ii]->style,style)==0) error->all("There must not be more than one fix of type couple/cfd");
+      if(strcmp(modify->fix[ii]->style,style) == 0) error->all("There must not be more than one fix of type couple/cfd");
   }
 
   if (narg < 5) error->all("Illegal fix couple/cfd/file command");
@@ -54,12 +60,29 @@ FixCfdCoupling::FixCfdCoupling(LAMMPS *lmp, int narg, char **arg) :
   nevery = 1;
 
   if (0) return;
-  #define COUPLING_CLASS
-  #define DataCouplingStyle(key,Class) \
-  else if (strcmp(arg[iarg],#key) == 0) dc = new Class(lmp,narg-iarg-1,&arg[iarg+1],this);
-  #include "style_datacoupling.h"
-  #undef COUPLING_CLASS
-  else error->all("Unknown data coupling style");
+  #define CFD_DATACOUPLING_CLASS
+  #define CfdDataCouplingStyle(key,Class) \
+  else if (strcmp(arg[iarg],#key) == 0) dc = new Class(lmp,iarg+1,narg,arg,this);
+  #include "style_cfd_datacoupling.h"
+  #undef CFD_DATACOUPLING_CLASS
+  else error->all("Unknown cfd data coupling style");
+
+  iarg = dc->get_iarg();
+
+  rm = NULL;
+
+  if(iarg < narg)
+  {
+      if (0) return;
+      #define CFD_REGIONMODEL_CLASS
+      #define CfdRegionStyle(key,Class) \
+      else if (strcmp(arg[iarg],#key) == 0) rm = new Class(lmp,iarg+1,narg,arg,this);
+      #include "style_cfd_regionmodel.h"
+      #undef CFD_REGIONMODEL_CLASS
+      else error->all("Unknown cfd regionmodel style");
+  }
+
+  if(rm) iarg = rm->get_iarg();
 
   extvector = 1; //extensive
   create_attribute = 1;
@@ -72,24 +95,24 @@ FixCfdCoupling::FixCfdCoupling(LAMMPS *lmp, int narg, char **arg) :
 
   atom->add_callback(0);
 
-  nvalues = 0;
+  npull = 0;
   npush = 0;
   nvalues_max = 0;
 
-  valnames = NULL;
-  valtypes = NULL;
-  nvals_each = NULL;
+  pullnames = NULL;
+  pulltypes = NULL;
   pushnames = NULL;
   pushtypes = NULL;
   grow_();
+
+  ts_create = update->ntimestep;
 }
 
 void FixCfdCoupling::grow_()
 {
       nvalues_max+=10;
-      valnames = memory->grow_2d_char_array(valnames,nvalues_max,MAXLENGTH,"FixCfdCoupling:valnames");
-      valtypes = memory->grow_2d_char_array(valtypes,nvalues_max,MAXLENGTH,"FixCfdCoupling:valtypes");
-      nvals_each = (int*)memory->srealloc(nvals_each,nvalues_max*sizeof(int),"FixCfdCoupling:nvals_each");
+      pullnames = memory->grow_2d_char_array(pullnames,nvalues_max,MAXLENGTH,"FixCfdCoupling:valnames");
+      pulltypes = memory->grow_2d_char_array(pulltypes,nvalues_max,MAXLENGTH,"FixCfdCoupling:valtypes");
       pushnames = memory->grow_2d_char_array(pushnames,nvalues_max,MAXLENGTH,"FixCfdCoupling:pushnames");
       pushtypes = memory->grow_2d_char_array(pushtypes,nvalues_max,MAXLENGTH,"FixCfdCoupling:pushtypes");
 }
@@ -98,8 +121,10 @@ FixCfdCoupling::~FixCfdCoupling()
 {
 	atom->delete_callback(id,0);
 	memory->destroy_2d_double_array(array_atom);
-	memory->destroy_2d_char_array(valnames);
-	memory->destroy_2d_char_array(valtypes);
+	memory->destroy_2d_char_array(pullnames);
+	memory->destroy_2d_char_array(pulltypes);
+	memory->destroy_2d_char_array(pushnames);
+	memory->destroy_2d_char_array(pushtypes);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -116,26 +141,20 @@ int FixCfdCoupling::setmask()
 
 /* ---------------------------------------------------------------------- */
 
-void FixCfdCoupling::set_arrays(int i)
-{
-    for (int m = 0; m < nvalues; m++)
-		array_atom[i][m] = 0.;
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixCfdCoupling::init()
 {
   if (strcmp(update->integrate_style,"respa") == 0)
     nlevels_respa = ((Respa *) update->integrate)->nlevels;
 
+  if(rm) rm->init();
+
+  init_submodel();
 }
 
 /* ---------------------------------------------------------------------- */
 
 void FixCfdCoupling::setup(int vflag)
 {
-
   if (strcmp(update->integrate_style,"verlet") == 0)
     post_force(vflag);
   else {
@@ -160,54 +179,100 @@ void FixCfdCoupling::pull(char *name,char *type,void *&ptr)
 
 /* ---------------------------------------------------------------------- */
 
-int FixCfdCoupling::add_pull_property(char *name,char *type)
+void FixCfdCoupling::add_pull_property(char *name,char *type)
 {
-    if(strlen(name)>=MAXLENGTH) error->all("Fix couple/cfd: Maximum string length for a variable exceeded");
+    if(strlen(name) >= MAXLENGTH) error->all("Fix couple/cfd: Maximum string length for a variable exceeded");
+    if(npull >= nvalues_max) grow_();
 
-    if(nvalues>=nvalues_max) grow_();
+    for(int i = 0; i < npull; i++)
+    {
+        if(strcmp(pullnames[i],name) == 0 && strcmp(pulltypes[i],type) == 0) return;
+        if(strcmp(pullnames[i],name) == 0 && strcmp(pulltypes[i],type)) error->all("Properties added via FixCfdCoupling::add_pull_property are inconsistent");
+    }
 
-    strcpy(valnames[nvalues],name);
-    strcpy(valtypes[nvalues],type);
-
-    if (strcmp(type,"vector")==0) nvals_each[nvalues] = 3;
-    else if (strcmp(type,"scalar")==0) nvals_each[nvalues] = 1;
-    else error->all("ix couple/cfd: Unregognized data type");
-    nvalues++;
-
-    //return index in array_atom where it is located
-    int index = 0;
-    for(int i=0;i<nvalues-1;i++)
-      index += nvals_each[i];
-
-    return index;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void* FixCfdCoupling::find_pull_property(char *name,char *type)
-{
-    int iprop = -1;
-    for(int i=0;i<nvalues;i++)
-        if(strcmp(name,valnames[i]) ==0 && strcmp(type,valtypes[i])==0) iprop = i;
-
-    if(iprop == -1) error->all("Fix couple/cfd could not locate pull property");
-
-    int index = 0;
-    for(int i=0;i<iprop;i++)
-      index += nvals_each[i];
-
-    return (void*)(&array_atom[index]);
+    strcpy(pullnames[npull],name);
+    strcpy(pulltypes[npull],type);
+    npull++;
 }
 
 /* ---------------------------------------------------------------------- */
 void FixCfdCoupling::add_push_property(char *name,char *type)
 {
-    if(strlen(name)>=MAXLENGTH) error->all("Fix couple/cfd: Maximum string length for a variable exceeded");
-    if(npush>=nvalues_max) grow_();
+    if(strlen(name) >= MAXLENGTH) error->all("Fix couple/cfd: Maximum string length for a variable exceeded");
+    if(npush >= nvalues_max) grow_();
+
+    for(int i = 0; i < npush; i++)
+    {
+        if(strcmp(pushnames[i],name) == 0 && strcmp(pushtypes[i],type) == 0) return;
+        if(strcmp(pushnames[i],name) == 0 && strcmp(pushtypes[i],type)) error->all("Properties added via FixCfdCoupling::add_push_property are inconsistent");
+    }
 
     strcpy(pushnames[npush],name);
     strcpy(pushtypes[npush],type);
     npush++;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void* FixCfdCoupling::find_pull_property(char *name,char *type,int &len1,int &len2)
+{
+    return find_property(0,name,type,len1,len2);
+}
+void* FixCfdCoupling::find_push_property(char *name,char *type,int &len1,int &len2)
+{
+    return find_property(1,name,type,len1,len2);
+}
+
+void* FixCfdCoupling::find_property(int push,char *name,char *type,int &len1,int &len2)
+{
+    fprintf(screen,"find_property called for %s, var %s, type %s\n",push==1?"push":"pull",name,type);
+
+    void *ptr = NULL;
+    int flag = 0;
+
+    //check existence
+    if(push)
+    {
+        for(int i = 0; i < npush; i++)
+            if(strcmp(pushnames[i],name) == 0 && strcmp(pushtypes[i],type) == 0) flag = 1;
+    }
+    else
+    {
+        for(int i = 0; i < npull; i++)
+            if(strcmp(pullnames[i],name) == 0 && strcmp(pulltypes[i],type) == 0) flag = 1;
+    }
+
+    if(!flag) error->all("Inconsistency in FixCfdCoupling::find_property");
+
+    if(atom->extract(name)) return atom->extract(name);
+
+    int ifix1 = -1, ifix2 = -1;
+
+    if(strcmp(type,"scalar") == 0 || strcmp(type,"vector") == 0)
+       ifix1 = modify->find_fix_property(name,"property/peratom",type,0,0,false);
+    else if(strcmp(type,"globalscalar") == 0)
+       ifix2 = modify->find_fix_property(name,"property/global","scalar",0,0,false);
+    else if(strcmp(type,"globalvector") == 0)
+       ifix2 = modify->find_fix_property(name,"property/global","vector",0,0,false);
+    else if(strcmp(type,"globalmatrix") == 0)
+       ifix2 = modify->find_fix_property(name,"property/global","matrix",0,0,false);
+
+    if(ifix1 > -1 && strcmp(type,"scalar") == 0) ptr = (void*) static_cast<FixPropertyPerAtom*>(modify->fix[ifix1])->vector_atom;
+    if(ifix1 > -1 && strcmp(type,"vector") == 0) ptr = (void*) static_cast<FixPropertyPerAtom*>(modify->fix[ifix1])->array_atom;
+
+    if(ifix2 > -1 && strcmp(type,"globalvector") == 0)
+    {
+        ptr = (void*) static_cast<FixPropertyGlobal*>(modify->fix[ifix2])->values;
+        len1 = static_cast<FixPropertyGlobal*>(modify->fix[ifix2])->nvalues;
+    }
+
+    if(ifix2 > -1 && strcmp(type,"globalarray") == 0)
+    {
+        ptr = (void*) static_cast<FixPropertyGlobal*>(modify->fix[ifix2])->array;
+        len1  = static_cast<FixPropertyGlobal*>(modify->fix[ifix2])->size_array_rows;
+        len2  = static_cast<FixPropertyGlobal*>(modify->fix[ifix2])->size_array_cols;
+    }
+    return ptr;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -219,27 +284,33 @@ void FixCfdCoupling::end_of_step()
 
     int ts = update->ntimestep;
 
-    if(ts % couple_nevery) return;
+    if((ts+1) % couple_nevery || ts_create == ts+1) couple_this = 0;
+    else couple_this = 1;
+
+    if(ts % couple_nevery || ts_create == ts) return;
+
+    if(screen && comm->me == 0) fprintf(screen,"CFD Coupling established at step %d\n",ts);
 
     void *dummy = NULL;
 
     if(ts % couple_nevery == 0)
     {
+      //call region model
+      if(rm) rm->rm_update();
 
-      //write to file  
-      for(int i = 0;i<npush;i++)
+      //write to file
+      for(int i = 0; i < npush; i++)
       {
            
            dc->push(pushnames[i],pushtypes[i],dummy);
       }
 
       //read from files
-      for(int i = 0;i<nvalues;i+=nvals_each[i])
+      for(int i = 0; i < npull; i++)
       {
          
-         dc->pull(valnames[i],valtypes[i],dummy);
+         dc->pull(pullnames[i],pulltypes[i],dummy);
       }
-
     }
 }
 
@@ -263,71 +334,3 @@ void FixCfdCoupling::min_post_force(int vflag)
 {
   post_force(vflag);
 }
-
-/* ----------------------------------------------------------------------
-   return stored values
-------------------------------------------------------------------------- */
-
-double FixCfdCoupling::compute_array(int i,int j)
-{
-    
-    return array_atom[i][j];
-}
-
-/* ----------------------------------------------------------------------
-   memory usage of local atom-based array
-------------------------------------------------------------------------- */
-
-double FixCfdCoupling::memory_usage()
-{
-  double bytes;
-  bytes = atom->nmax*nvalues * sizeof(double);
-  return bytes;
-}
-
-/* ----------------------------------------------------------------------
-   allocate atom-based array
-------------------------------------------------------------------------- */
-
-void FixCfdCoupling::grow_arrays(int nmax)
-{
-    array_atom = memory->grow_2d_double_array(array_atom,nmax,nvalues,"fix_cfd_coupling:array_atom");
-}
-
-void FixCfdCoupling::zero_arrays()
-{
-  int nlocal = atom->nlocal;
-  for (int i = 0; i < nlocal; i++)
-	set_arrays(i);
-}
-
-/* ----------------------------------------------------------------------
-   copy values within local atom-based array
-------------------------------------------------------------------------- */
-
-void FixCfdCoupling::copy_arrays(int i, int j)
-{
-  for (int m = 0; m < nvalues; m++)
-    array_atom[j][m] = array_atom[i][m];
-}
-
-/* ----------------------------------------------------------------------
-   pack values in local atom-based array for exchange with another proc
-------------------------------------------------------------------------- */
-
-int FixCfdCoupling::pack_exchange(int i, double *buf)
-{
-  for (int m = 0; m < nvalues; m++) buf[m] = array_atom[i][m];
-  return nvalues;
-}
-
-/* ----------------------------------------------------------------------
-   unpack values in local atom-based array from exchange with another proc
-------------------------------------------------------------------------- */
-
-int FixCfdCoupling::unpack_exchange(int nlocal, double *buf)
-{
-  for (int m = 0; m < nvalues; m++) array_atom[nlocal][m] = buf[m];
-  return nvalues;
-}
-

@@ -61,7 +61,7 @@ void Neighbor::bond_all()
           bondlist = memory->grow_2d_int_array(bondlist,maxbond,4,"neighbor:bondlist"); 
           if(atom->n_bondhist) bondhistlist = memory->grow_2d_double_array(bondhistlist,maxbond,atom->n_bondhist,"neighbor:bondhistlist");  
         }
-        //fprintf(screen,"adding pair %d %d to bondlist\n",i,atom1);
+        
         bondlist[nbondlist][0] = i;
         bondlist[nbondlist][1] = atom1;
         bondlist[nbondlist][2] = bond_type[i][m];

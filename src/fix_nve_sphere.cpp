@@ -5,7 +5,7 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
+   certain rights in this software.  This software is distributed under
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
@@ -21,6 +21,7 @@
 #include "respa.h"
 #include "force.h"
 #include "error.h"
+#include "domain.h" 
 
 using namespace LAMMPS_NS;
 
@@ -106,7 +107,7 @@ void FixNVESphere::init()
 	itype = type[i];
 	if (shape[itype][0] == 0.0)
 	  error->one("Fix nve/sphere requires extended particles");
-	if (shape[itype][0] != shape[itype][1] || 
+	if (shape[itype][0] != shape[itype][1] ||
 	    shape[itype][0] != shape[itype][2])
 	  error->one("Fix nve/sphere requires spherical particle shapes");
       }
@@ -139,7 +140,9 @@ void FixNVESphere::initial_integrate(int vflag)
 
   // set timestep here since dt may have changed or come via rRESPA
 
-  double dtfrotate = dtf / INERTIA;
+  double dtfrotate; 
+  if (domain->dimension == 2) dtfrotate = dtf / 0.5; // for discs the formula is I=0.5*Mass*Radius^2
+  else dtfrotate  = dtf / INERTIA;
 
   // update v,x,omega for all particles
   // d_omega/dt = torque / inertia
@@ -156,7 +159,7 @@ void FixNVESphere::initial_integrate(int vflag)
 	  x[i][0] += dtv * v[i][0];
 	  x[i][1] += dtv * v[i][1];
 	  x[i][2] += dtv * v[i][2];
-	  
+
 	  dtirotate = dtfrotate / (radius[i]*radius[i]*rmass[i]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];
@@ -175,7 +178,7 @@ void FixNVESphere::initial_integrate(int vflag)
 	  x[i][0] += dtv * v[i][0];
 	  x[i][1] += dtv * v[i][1];
 	  x[i][2] += dtv * v[i][2];
-	  
+
 	  dtirotate = dtfrotate / (radius[i]*radius[i]*mass[itype]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];
@@ -196,7 +199,7 @@ void FixNVESphere::initial_integrate(int vflag)
 	  x[i][0] += dtv * v[i][0];
 	  x[i][1] += dtv * v[i][1];
 	  x[i][2] += dtv * v[i][2];
-	  
+
 	  dtirotate = dtfrotate / (shape[itype][0]*shape[itype][0]*rmass[i]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];
@@ -215,8 +218,8 @@ void FixNVESphere::initial_integrate(int vflag)
 	  x[i][0] += dtv * v[i][0];
 	  x[i][1] += dtv * v[i][1];
 	  x[i][2] += dtv * v[i][2];
-	  
-	  dtirotate = dtfrotate / 
+
+	  dtirotate = dtfrotate /
 	    (shape[itype][0]*shape[itype][0]*mass[itype]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];
@@ -272,7 +275,9 @@ void FixNVESphere::final_integrate()
 
   // set timestep here since dt may have changed or come via rRESPA
 
-  double dtfrotate = dtf / INERTIA;
+  double dtfrotate; 
+  if (domain->dimension == 2) dtfrotate = dtf / 0.5; // for discs the formula is I=0.5*Mass*Radius^2
+  else dtfrotate  = dtf / INERTIA;
 
   // update v,omega for all particles
   // d_omega/dt = torque / inertia
@@ -286,7 +291,7 @@ void FixNVESphere::final_integrate()
 	  v[i][0] += dtfm * f[i][0];
 	  v[i][1] += dtfm * f[i][1];
 	  v[i][2] += dtfm * f[i][2];
-	  
+
 	  dtirotate = dtfrotate / (radius[i]*radius[i]*rmass[i]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];
@@ -302,7 +307,7 @@ void FixNVESphere::final_integrate()
 	  v[i][0] += dtfm * f[i][0];
 	  v[i][1] += dtfm * f[i][1];
 	  v[i][2] += dtfm * f[i][2];
-	  
+
 	  dtirotate = dtfrotate / (radius[i]*radius[i]*mass[itype]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];
@@ -320,7 +325,7 @@ void FixNVESphere::final_integrate()
 	  v[i][0] += dtfm * f[i][0];
 	  v[i][1] += dtfm * f[i][1];
 	  v[i][2] += dtfm * f[i][2];
-	  
+
 	  dtirotate = dtfrotate / (shape[itype][0]*shape[itype][0]*rmass[i]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];
@@ -336,8 +341,8 @@ void FixNVESphere::final_integrate()
 	  v[i][0] += dtfm * f[i][0];
 	  v[i][1] += dtfm * f[i][1];
 	  v[i][2] += dtfm * f[i][2];
-	  
-	  dtirotate = dtfrotate / 
+
+	  dtirotate = dtfrotate /
 	    (shape[itype][0]*shape[itype][0]*mass[itype]);
 	  omega[i][0] += dtirotate * torque[i][0];
 	  omega[i][1] += dtirotate * torque[i][1];

@@ -1700,6 +1700,7 @@ void Variable::peratom2global(int flag, char *word,
       else if (strcmp(word,"omegax") == 0) mine = atom->omega[index][0];//added in modified GM
       else if (strcmp(word,"omegay") == 0) mine = atom->omega[index][1];
       else if (strcmp(word,"omegaz") == 0) mine = atom->omega[index][2];
+      else if (strcmp(word,"radius") == 0) mine = atom->radius[index];
 
       else error->one("Invalid atom vector in variable formula");
 
@@ -1742,6 +1743,7 @@ int Variable::is_atom_vector(char *word)
   if (strcmp(word,"omegax") == 0) return 1;//added in, modified GM
   if (strcmp(word,"omegay") == 0) return 1;
   if (strcmp(word,"omegaz") == 0) return 1;
+  if (strcmp(word,"radius") == 0) return 1;
   return 0;
 }
 
@@ -1790,4 +1792,9 @@ void Variable::atom_vector(char *word, Tree **tree,
   else if (strcmp(word,"omegax") == 0) newtree->array = &atom->omega[0][0];//added in modified GM
   else if (strcmp(word,"omegay") == 0) newtree->array = &atom->omega[0][1];
   else if (strcmp(word,"omegaz") == 0) newtree->array = &atom->omega[0][2];
+  else if (strcmp(word,"radius") == 0)
+  {
+      newtree->array = atom->radius;
+      newtree->nstride = 1;
+  }
 }

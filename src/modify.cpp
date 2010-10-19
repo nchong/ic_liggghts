@@ -688,12 +688,35 @@ int Modify::find_fix(const char *id)
 
 /* ----------------------------------------------------------------------
    
+   add a fix property
+------------------------------------------------------------------------- */
+FixPropertyGlobal* Modify::add_fix_property_global(int narg,char **arg)
+{
+    if(narg < 5) error->all("Not enough arguments to add a fix property");
+    add_fix(narg,arg);
+    return static_cast<FixPropertyGlobal*>(fix[find_fix_property(arg[3],"property/global",arg[4],0,0)]);
+}
+
+FixPropertyPerAtom* Modify::add_fix_property_peratom(int narg,char **arg)
+{
+    if(narg < 5) error->all("Not enough arguments to add a fix property");
+    add_fix(narg,arg);
+    return static_cast<FixPropertyPerAtom*>(fix[find_fix_property(arg[3],"property/peratom",arg[4],0,0)]);
+}
+
+/* ----------------------------------------------------------------------
+   
    find a property registered by a fix property/global or fix property/peratom
    check if it is of desired style
    return the index in the fix array
 ------------------------------------------------------------------------- */
 
 int Modify::find_fix_property(const char *varname,const char *style,const char *svmstyle,int len1,int len2)
+{
+    return find_fix_property(varname,style,svmstyle,len1,len2,true);
+}
+
+int Modify::find_fix_property(const char *varname,const char *style,const char *svmstyle,int len1,int len2,bool errflag)
 {
   int ifix,svm;
   int ret;
@@ -703,7 +726,7 @@ int Modify::find_fix_property(const char *varname,const char *style,const char *
 
   if((len1<0)||(len2<0))error->all("Lengths for find_fix_property not valid");
 
-  if((strcmp(svmstyle,"scalar")!=0) && (!strcmp(svmstyle,"vector")) && (strcmp(svmstyle,"peratomtype")!=0) && (strcmp(svmstyle,"peratomtypepair")!=0) && (strcmp(svmstyle,"matrix")!=0))
+  if((strcmp(svmstyle,"scalar")!=0) && (strcmp(svmstyle,"vector")!=0) && (strcmp(svmstyle,"peratomtype")!=0) && (strcmp(svmstyle,"peratomtypepair")!=0) && (strcmp(svmstyle,"matrix")!=0))
      error->all("Svmstyle for find_fix_property not valid");
 
   if((strcmp(style,"property/peratom")==0) && ((strcmp(svmstyle,"peratomtype")==0) || (strcmp(svmstyle,"peratomtypepair")==0) || (strcmp(svmstyle,"matrix")==0)) )
@@ -725,10 +748,14 @@ int Modify::find_fix_property(const char *varname,const char *style,const char *
               {
                   if(svm!=fppa->vectorStyle)
                   {
-                      sprintf(errmsg,svmstyle);
-                      strcat(errmsg," style required for variable ");
-                      strcat(errmsg,varname);
-                      error->all(errmsg);
+                      if(errflag)
+                      {
+                          sprintf(errmsg,svmstyle);
+                          strcat(errmsg," style required for variable ");
+                          strcat(errmsg,varname);
+                          error->all(errmsg);
+                      }
+                      else return -1;
                   }
                   else  //success
                   {
@@ -744,18 +771,26 @@ int Modify::find_fix_property(const char *varname,const char *style,const char *
               {
                   if(svm!=fppg->svmStyle)
                   {
-                      sprintf(errmsg,svmstyle);
-                      strcat(errmsg," style required for variable ");
-                      strcat(errmsg,varname);
-                      error->all(errmsg);
+                      if(errflag)
+                      {
+                         sprintf(errmsg,svmstyle);
+                         strcat(errmsg," style required for variable ");
+                         strcat(errmsg,varname);
+                         error->all(errmsg);
+                      }
+                      else return -1;
                   }
                   else
                   {
                       if((fppg->nvalues<len1)||((svm==2) && (fppg->size_array_rows<len2)))
                       {
-                          sprintf(errmsg,"Length not sufficient for variable ");
-                          strcat(errmsg,varname);
-                          error->all(errmsg);
+                          if(errflag)
+                          {
+                              sprintf(errmsg,"Length not sufficient for variable ");
+                              strcat(errmsg,varname);
+                              error->all(errmsg);
+                          }
+                          else return -1;
                       }
                       else  //success
                       {
@@ -770,9 +805,12 @@ int Modify::find_fix_property(const char *varname,const char *style,const char *
   }
 
   if (ifix == nfix) {
-      sprintf(errmsg,"Could not locate a fix/property storing value(s) for ");
-      strcat(errmsg,varname);
-      error->all(errmsg);
+      if(errflag)
+      {
+          sprintf(errmsg,"Could not locate a fix/property storing value(s) for ");
+          strcat(errmsg,varname);
+          error->all(errmsg);
+      }
   }
   return -1;
 }

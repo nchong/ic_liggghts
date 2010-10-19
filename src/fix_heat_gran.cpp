@@ -39,6 +39,8 @@ See the README file in the top-level LAMMPS directory.
 
 using namespace LAMMPS_NS;
 
+#define SMALL 1e-8
+
 /* ---------------------------------------------------------------------- */
 
 FixHeatGran::FixHeatGran(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
@@ -52,6 +54,9 @@ FixHeatGran::FixHeatGran(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg
 
   if (narg < 4) error->all("Illegal fix heat/gran command, not enough arguments");
   T0 = atof(arg[3]);
+
+  //(fpgco->value())[0] = 0;
+  //fpgco->value();
 
   fppat = static_cast<FixPropertyPerAtom*>(NULL);
   fppahf = static_cast<FixPropertyPerAtom*>(NULL);
@@ -89,6 +94,7 @@ int FixHeatGran::setmask()
   mask |= POST_FORCE;
   mask |= FINAL_INTEGRATE;
   mask |= INITIAL_INTEGRATE_RESPA;
+  mask |= INITIAL_INTEGRATE;
   return mask;
 }
 /* ---------------------------------------------------------------------- */
@@ -169,6 +175,26 @@ void FixHeatGran::init()
 
 /* ---------------------------------------------------------------------- */
 
+void FixHeatGran::initial_integrate(int vflag)
+{
+  
+  updatePtrs();
+
+  //reset heat flux
+  int *mask = atom->mask;
+  for (int i = 0; i < atom->nlocal; i++)
+  {
+       if (mask[i] & groupbit){
+           heatFlux[i]=0.;
+       }
+  }
+
+  fppat->do_forward_comm();
+  fppahs->do_forward_comm();
+}
+
+/* ---------------------------------------------------------------------- */
+
 void FixHeatGran::post_force(int vflag)
 {
   double hc,contactArea;
@@ -195,17 +221,6 @@ void FixHeatGran::post_force(int vflag)
 
   updatePtrs();
 
-  //reset heat flux
-  for (int i = 0; i < atom->nlocal; i++)
-  {
-       if (mask[i] & groupbit){
-           heatFlux[i]=0.;
-       }
-  }
-
-  fppat->do_forward_comm();
-  fppahs->do_forward_comm();
-
   // loop over neighbors of my atoms
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
@@ -218,6 +233,9 @@ void FixHeatGran::post_force(int vflag)
 
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
+
+      if (!(mask[i] & groupbit && mask[j] & groupbit)) continue;
+
       delx = xtmp - x[j][0];
       dely = ytmp - x[j][1];
       delz = ztmp - x[j][2];
@@ -231,11 +249,11 @@ void FixHeatGran::post_force(int vflag)
          tcoi=fpgco->compute_vector(type[i]-1); //types start at 1, array at 0
          tcoj=fpgco->compute_vector(type[j]-1);
 
-         if ((fabs(tcoi)<1e-7)||(fabs(tcoj)<1e-7)) hc=0.;
+         if ((fabs(tcoi) < SMALL) || (fabs(tcoj) < SMALL)) hc = 0.;
          else hc=4.*tcoi*tcoj/(tcoi+tcoj)*sqrt(contactArea);
 
-         heatFlux[i]+=(Temp[j]-Temp[i])*hc+heatSource[i];
-         if (newton_pair||j<nlocal) heatFlux[j]+=(Temp[i]-Temp[j])*hc+heatSource[j];
+         heatFlux[i] += (Temp[j]-Temp[i])*hc;
+         if (newton_pair||j<nlocal) heatFlux[j] += (Temp[i]-Temp[j])*hc;
       }
     }
   }
@@ -258,8 +276,8 @@ void FixHeatGran::final_integrate()
     for (int i = 0; i < nlocal; i++)
     {
        if (mask[i] & groupbit){
-          tcai=fpgca->compute_vector(type[i]-1);
-          if(fabs(tcai)>1.e-3) Temp[i]+=heatFlux[i]*dt/(rmass[i]*tcai);
+          tcai = fpgca->compute_vector(type[i]-1);
+          if(fabs(tcai) > SMALL) Temp[i] += (heatFlux[i] + heatSource[i]) * dt / (rmass[i]*tcai);
        }
     }
 }

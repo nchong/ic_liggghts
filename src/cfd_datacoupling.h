@@ -27,15 +27,22 @@ namespace LAMMPS_NS {
 
 class CfdDatacoupling : protected Pointers {
  public:
-  CfdDatacoupling(class LAMMPS *lmp, int narg, char **arg,class FixCfdCoupling* fc) : Pointers(lmp) {}
+
+  CfdDatacoupling(class LAMMPS *lmp, int jarg,int narg, char **arg,class FixCfdCoupling* fc) : Pointers(lmp)
+  {
+      this->fc = fc;
+  }
   ~CfdDatacoupling() {}
 
+  int get_iarg() {return iarg;}
   bool liggghts_is_active;
-
-  class FixCfdCoupling *fc;
 
   virtual void pull(char *,char *,void *&) {};
   virtual void push(char *,char *,void *&) {};
+
+ protected:
+  int iarg;
+  class FixCfdCoupling *fc;
 };
 
 }

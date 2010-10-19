@@ -79,7 +79,7 @@ FixMeshGran::FixMeshGran(LAMMPS *lmp, int narg, char **arg) :
     fprintf(screen,"\nImporting STL file '%s' \n",stl_filename);
   }
 
-  STLdata= new STLtri(lmp);
+  STLdata = new STLtri(lmp);
 
   //allocate input class
   mystl_input = new Input(lmp,0,NULL);
@@ -94,6 +94,34 @@ FixMeshGran::FixMeshGran(LAMMPS *lmp, int narg, char **arg) :
   calcTriCharacteristics(STLdata->nTri,STLdata->node,STLdata->cK,STLdata->ogK,STLdata->ogKlen,STLdata->oKO,STLdata->rK,STLdata->Area,STLdata->facenormal,STLdata->neighfaces,STLdata->contactInactive);
 
   if  (comm->me==0) fprintf(screen,"\nImport of %d triangles completed successfully!\n\n",STLdata->nTri);
+
+  Temp_mesh = -1.;
+
+  bool hasargs = true;
+  while(iarg < narg && hasargs)
+  {
+      hasargs = false;
+      if(strcmp(arg[iarg],"temperature") == 0)
+      {
+          if (narg < iarg+2) error->all("Illegal fix mesh/gran command, not enough arguments");
+          iarg++;
+          Temp_mesh = atof(arg[iarg++]);
+          hasargs = true;
+      }
+      else if (strcmp(arg[iarg],"conveyor") == 0)
+      {
+          if (narg < iarg+4) error->all("Illegal fix mesh/gran command, not enough arguments");
+          iarg++;
+          STLdata->conv_vel[0] = atof(arg[iarg++]);
+          STLdata->conv_vel[1] = atof(arg[iarg++]);
+          STLdata->conv_vel[2] = atof(arg[iarg++]);
+          double conv_vel_mag = vectorMag3D(STLdata->conv_vel);
+          if(conv_vel_mag<EPSILON) error->all("Conveyor velocity too low");
+          STLdata->initConveyor();
+          hasargs = true;
+      }
+      else if(strcmp(style,"mesh/gran") == 0) error->all("Illegal fix mesh/gran command, unknown keyword");
+  }
 
   force_total=new double[3];
   torque_total=new double[3];
@@ -111,16 +139,6 @@ FixMeshGran::FixMeshGran(LAMMPS *lmp, int narg, char **arg) :
   STLdata->conv_vel[1]=0.;
   STLdata->conv_vel[2]=0.;
 
-  if(narg>=16 && strcmp(arg[iarg],"conveyor")==0)
-  {
-      iarg++;
-      STLdata->conv_vel[0]=atof(arg[iarg++]);
-      STLdata->conv_vel[1]=atof(arg[iarg++]);
-      STLdata->conv_vel[2]=atof(arg[iarg++]);
-      double conv_vel_mag=vectorMag3D(STLdata->conv_vel);
-      if(conv_vel_mag<EPSILON) error->all("Conveyor velocity too low");
-      STLdata->initConveyor();
-  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -289,6 +307,7 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
           for(int j=0;j<3;j++)
           {
               int iNeigh=neighfaces[i][j];
+              
               if(iNeigh >= 0)
               {
                   
@@ -315,7 +334,7 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
 
               int neigh1 = neighfaces[i][edge1];
               int neigh2 = neighfaces[i][edge2];
-
+              
               if(neigh1 >= 0 && neigh2 >= 0)
               {
                   double dot1=vectorDot3D(facenormal[i],facenormal[neigh1]);
@@ -327,9 +346,9 @@ void FixMeshGran::calcTriCharacteristics(int nTri,double ***node,double **cK,dou
                   }
               }
 
-              int maxid = -1,nPrev = 0;
+              int maxid = -1, nPrev = 0;
               
-              if(neigh1 >= 0) maxid = get_max_index_sharedcorner(i,nPrev,prevFaces,node[i][j],node,rK,neighfaces);
+              if(neigh1 >= 0 || neigh2 >= 0) maxid = get_max_index_sharedcorner(i,nPrev,prevFaces,node[i][j],node,rK,neighfaces);
 
               if(i < maxid)
               {

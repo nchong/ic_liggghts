@@ -30,12 +30,14 @@ See the README file in the top-level LAMMPS directory.
 namespace LAMMPS_NS {
 
 class FixCfdCoupling : public Fix {
+ friend class CfdRegionmodel;
  public:
   FixCfdCoupling(class LAMMPS *, int, char **);
   ~FixCfdCoupling();
 
   virtual int setmask();
-  virtual void init();
+  void init();
+  virtual void init_submodel(){}
   virtual void setup(int);
   virtual void min_setup(int);
   virtual void initial_integrate(int) {}
@@ -49,46 +51,40 @@ class FixCfdCoupling : public Fix {
   void post_force_respa(int, int, int);
   void min_post_force(int);
 
-  double compute_array(int,int);
-
-  double memory_usage();
-  void grow_arrays(int);
-  void grow_arrays_allred(int);
-  void zero_arrays();
-  void copy_arrays(int, int);
-  int pack_exchange(int, double *);
-  int unpack_exchange(int, double *);
-  void set_arrays(int);
-
   void pull(char *name,char *type,void *&ptr);
   void push(char *name,char *type,void *&ptr);
-  void *find_pull_property(char *name,char *type);
 
- protected:
   void add_push_property(char *name,char *type);
-  int add_pull_property(char *name,char *type);
+  void add_pull_property(char *name,char *type);
 
+  void* find_property(int flag,char *name,char *type,int &len1,int &len2);
+  void* find_pull_property(char *name,char *type,int &len1,int &len2);
+  void* find_push_property(char *name,char *type,int &len1,int &len2);
   virtual void special_settings() =0;
 
-  int nvalues;
+ protected:
+  int couple_this;
 
  private:
 
-  int couple_nevery;
+  int couple_nevery,ts_create;
 
   int nvalues_max;
+
+  int npull;
   
-  int *nvals_each;
-  char **valnames;
-  char **valtypes;
+  char **pullnames;
+  char **pulltypes;
   
   int npush;
   char **pushnames;
   char **pushtypes;
-
+  
   void grow_();
 
   class CfdDatacoupling *dc;
+
+  class CfdRegionmodel *rm;
 
   int nlevels_respa;
 };

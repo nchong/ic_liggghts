@@ -36,12 +36,13 @@ class FixCfdCouplingForce : public FixCfdCoupling {
   FixCfdCouplingForce(class LAMMPS *, int, char **);
   ~FixCfdCouplingForce();
   virtual int setmask();
+  virtual void init_submodel();
   virtual void post_force(int);
 
  protected:
   virtual void special_settings();
 
-  int dragforce_index;
+  class FixPropertyPerAtom* dragforce;
 };
 
 }

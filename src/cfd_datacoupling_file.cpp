@@ -30,6 +30,8 @@ See the README file in the top-level LAMMPS directory.
 #include "modify.h"
 #include "math.h"
 #include "myvector.h"
+#include "fix_propertyPerAtom.h"
+#include "fix_propertyGlobal.h"
 #include "fix_cfd_coupling.h"
 #include "cfd_datacoupling_file.h"
 #include <iostream>
@@ -40,21 +42,26 @@ using namespace std;
 
 /* ---------------------------------------------------------------------- */
 
-CfdDatacouplingFile::CfdDatacouplingFile(LAMMPS *lmp, int narg, char **arg,FixCfdCoupling *fc)  :
-  CfdDatacoupling(lmp, narg, arg,fc)
+CfdDatacouplingFile::CfdDatacouplingFile(LAMMPS *lmp, int jarg,int narg, char **arg,FixCfdCoupling *fc)  :
+  CfdDatacoupling(lmp, jarg, narg, arg,fc)
 {
-    if(comm->nprocs>1)  error->all("Fix couple/cfd with file coupling is for serial computation only");
-    if(narg==0) error->all("Fix couple/cfd: not enough arguments");
+    if(comm->nprocs > 1)  error->all("Fix couple/cfd with file coupling is for serial computation only");
+
+    iarg = jarg;
+    int n_arg = narg - iarg;
+    
+    if(n_arg < 1) error->all("Cfd file coupling: wrong # arguments");
 
     liggghts_is_active = true;
     firstexec = true;
 
     this->fc = fc;
 
-    filepath = new char[strlen(arg[0])+2];
-    strcpy(filepath,arg[0]);
-    if(filepath[strlen(arg[0])]!='/') strcat(filepath,"/");
+    filepath = new char[strlen(arg[iarg])+2];
+    strcpy(filepath,arg[iarg]);
+    if(filepath[strlen(arg[iarg])]!='/') strcat(filepath,"/");
 
+    iarg++;
 }
 
 CfdDatacouplingFile::~CfdDatacouplingFile()
@@ -66,22 +73,34 @@ CfdDatacouplingFile::~CfdDatacouplingFile()
 
 void CfdDatacouplingFile::pull(char *name,char *type,void *&from)
 {
-    void * to = fc->find_pull_property(name,type);
+    int len1 = -1, len2 = -1;
 
-    if (!to)
-    {
-        if(screen) fprintf(screen,"LIGGGHTS could not find property %s to write data from calling program to.\n",name);
-        lmp->error->all("This is fatal");
-    }
+    void * to = fc->find_pull_property(name,type,len1,len2);
 
-    if(strcmp(type,"scalar") == 0)
+    if(to && strcmp(type,"scalar") == 0)
     {
         readScalarData(name,(double*)to);
     }
 
-    if(strcmp(type,"vector") == 0)
+    else if(to && strcmp(type,"vector") == 0)
     {
         readVectorData(name,(double**)to);
+    }
+
+    else if(to &&  strcmp(type,"globalvector") == 0)
+    {
+        readGlobalVectorData(name,(double*)from,len1);
+    }
+
+    else if(to && strcmp(type,"globalarray") == 0)
+    {
+        readGlobalArrayData(name,(double**)from,len1,len2);
+    }
+
+    else
+    {
+        if(screen) fprintf(screen,"LIGGGHTS could not find property %s to write data from calling program to.\n",name);
+        lmp->error->all("This error is fatal");
     }
     firstexec = false;
 }
@@ -90,26 +109,37 @@ void CfdDatacouplingFile::pull(char *name,char *type,void *&from)
 
 void CfdDatacouplingFile::push(char *name,char *type,void *&to)
 {
-    void *from = atom->extract(name);
+    int len1 = -1, len2 = -1;
 
-    if (!from)
-    {
-        if(screen) fprintf(screen,"LIGGGHTS could not find property %s requested by calling program.\n",name);
-        lmp->error->all("This is fatal");
-    }
+    void * from = fc->find_push_property(name,type,len1,len2);
 
-    if(strcmp(type,"scalar") == 0)
+    if(from && strcmp(type,"scalar") == 0)
     {
         writeScalarData(name,(double*)from);
     }
 
-    if(strcmp(type,"vector") == 0)
+    else if(from && strcmp(type,"vector") == 0)
     {
         writeVectorData(name,(double**)from);
     }
+
+    else if(from && strcmp(type,"globalvector") == 0)
+    {
+        writeGlobalVectorData(name,(double*)from,len1);
+    }
+
+    else if(from && strcmp(type,"globalarray") == 0)
+    {
+        writeGlobalArrayData(name,(double**)from,len1,len2);
+    }
+
+    else
+    {
+        if(screen) fprintf(screen,"LIGGGHTS could not find property %s requested by calling program.\n",name);
+        lmp->error->all("This error is fatal");
+    }
 }
 
-/* ---------------------------------------------------------------------- */
 /* ---------------------------------------------------------------------- */
 /* ---------------------------------------------------------------------- */
 
@@ -124,6 +154,8 @@ char * CfdDatacouplingFile::getFilePath(char *name,bool flag)
     return file;
 }
 
+/* ---------------------------------------------------------------------- */
+
 void CfdDatacouplingFile::op_complete(char *name)
 {
     char *oldfile = getFilePath(name,true);
@@ -133,6 +165,8 @@ void CfdDatacouplingFile::op_complete(char *name)
     delete []oldfile;
     delete []newfile;
 }
+
+/* ---------------------------------------------------------------------- */
 
 void CfdDatacouplingFile::readVectorData(char *name, double ** field)
 {
@@ -161,6 +195,8 @@ void CfdDatacouplingFile::readVectorData(char *name, double ** field)
     delete []file;
     op_complete(name);
 }
+
+/* ---------------------------------------------------------------------- */
 
 void CfdDatacouplingFile::readScalarData(char* name, double *field)
 {
@@ -191,6 +227,67 @@ void CfdDatacouplingFile::readScalarData(char* name, double *field)
     op_complete(name);
 }
 
+/* ---------------------------------------------------------------------- */
+
+void CfdDatacouplingFile::readGlobalArrayData(char *name, double ** field, int &len1, int &len2)
+{
+    // get output path
+    char *file = getFilePath(name,true);
+
+    fprintf(screen,"Fix couple/cfd/file: waiting for file: %s\n",file);
+    struct stat st;
+    while (stat(file,&st)) sleep(0.03);
+
+    // set file pointerfrom
+    ifstream inputPtr(file);
+
+    // write data to variable
+    int l1,l2;
+    inputPtr >> len1;
+    inputPtr >> len2;
+    if(l1 != len1 || l2 != len2) error->all("Global array received has different length than the corresponding global array in LIGGGHTS");
+
+    for(int index = 0;index < len1; ++index)
+    {
+        for(int i=0;i<len2;i++) inputPtr >> field[index][i];
+    }
+
+    // clean up inputStream
+    delete []file;
+    op_complete(name);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void CfdDatacouplingFile::readGlobalVectorData(char* name, double *field, int &len)
+{
+    // get output path
+    char *file = getFilePath(name,true);
+
+    fprintf(screen,"Fix couple/cfd/file: waiting for file: %s\n",file);
+    struct stat st;
+    while (stat(file,&st)) sleep(0.03);
+
+    // set file pointer
+    int l1;
+    ifstream inputPtr(file);
+    inputPtr >> l1;
+
+    if(l1 != len) error->all("Global vector received has different length than the corresponding global array in LIGGGHTS");
+
+    // write data to variable
+    for(int index = 0;index < len; ++index)
+    {
+        inputPtr >> field[index];
+    }
+
+    // clean up inputStream
+    delete []file;
+    op_complete(name);
+}
+
+/* ---------------------------------------------------------------------- */
+
 void CfdDatacouplingFile::writeVectorData(char *name,  double ** field)
 {
     // get output path
@@ -220,6 +317,8 @@ void CfdDatacouplingFile::writeVectorData(char *name,  double ** field)
     op_complete(name);
 }
 
+/* ---------------------------------------------------------------------- */
+
 void CfdDatacouplingFile::writeScalarData(char* name, double * field)
 {
     // get output path
@@ -248,3 +347,67 @@ void CfdDatacouplingFile::writeScalarData(char* name, double * field)
     op_complete(name);
 }
 
+/* ---------------------------------------------------------------------- */
+
+void CfdDatacouplingFile::writeGlobalVectorData(char *name,  double *field,int len)
+{
+    if(len < 0) error->all("Internal error in CfdDatacouplingFile");
+
+    // get output path
+    char *file = getFilePath(name,true);
+
+    if(!firstexec)
+    {
+      fprintf(screen,"Fix couple/cfd/file: waiting for file: %s\n",file);
+       struct stat st;
+       while (stat(file,&st)) sleep(0.03);
+    }
+
+    // set file pointer
+    ofstream outputPtr(file);
+
+    // write data to file
+    outputPtr << len << endl;
+    for(int index = 0;index < len; ++index)
+    {
+        outputPtr << field[index];
+        outputPtr << endl;
+    }
+
+    // clean up outputStream and rename file
+    delete []file;
+    op_complete(name);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void CfdDatacouplingFile::writeGlobalArrayData(char* name, double **field,int len1,int len2)
+{
+    if(len1 < 0 || len2 < 0) error->all("Internal error in CfdDatacouplingFile");
+
+    // get output path
+    char *file = getFilePath(name,true);
+
+    if(!firstexec)
+    {
+      fprintf(screen,"Fix couple/cfd/file: waiting for file: %s\n",file);
+       struct stat st;
+       while (stat(file,&st)) sleep(0.03);
+    }
+
+    // set file pointer
+    ofstream outputPtr(file);
+
+    // write data to file
+    outputPtr << len1 << endl;
+    outputPtr << len2 << endl;
+    for(int index = 0;index < len1; ++index)
+    {
+        for(int i=0;i<len2;i++) outputPtr << field[index][i] << " ";
+        outputPtr << endl;
+    }
+
+    // clean up outputStream and rename file
+    delete []file;
+    op_complete(name);
+}

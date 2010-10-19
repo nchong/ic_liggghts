@@ -271,7 +271,6 @@ FixPourDev::FixPourDev(LAMMPS *lmp, int narg, char **arg) :
   }
 
   nper = volfrac*volume/volume_one;       
-  nfinal = static_cast<int>(update->ntimestep + 1 + (ninsert-1)/nper * nfreq); 
 
   //return here for doing packing
   if(strcmp(this->style,"pour/dev/packing")==0) return;
@@ -312,6 +311,8 @@ FixPourDev::FixPourDev(LAMMPS *lmp, int narg, char **arg) :
   double t =
     (-v_relative - sqrt(v_relative*v_relative - 2.0*grav*delta)) / grav;
   nfreq = static_cast<int> (t/update->dt + 0.5);
+
+  nfinal = static_cast<int>(update->ntimestep + 1 + (ninsert-1)/nper * nfreq); 
 
   // nper2 = # to insert each time 
   // only choose if massflowrate is criterion; depends on specified mass flow rate and mass expectancy
@@ -892,13 +893,16 @@ void FixPourDev::restart(char *buf)
 {
   int n = 0;
   double *list = (double *) buf;
+  double next_reneighbor_re;
 
   seed = static_cast<int> (list[n++]);
   ninserted = static_cast<int> (list[n++]);
   nfirst = static_cast<int> (list[n++]);
-  next_reneighbor = static_cast<int> (list[n++]);
+  next_reneighbor_re = static_cast<int> (list[n++]);
   nBody = static_cast<int> (list[n++]);
   mass_ins= list[n++];
 
   random->reset(seed);
+
+  if(next_reneighbor_re != 0 && ninserted < ninsert) next_reneighbor = next_reneighbor_re;
 }

@@ -59,6 +59,7 @@ class FixMeshGran : public Fix {
   virtual void post_integrate(){}
 
   int atom_type_wall;//atom type that is assigned to the wall (to derive the mechanical properties) and thus to all pseudo wall particles
+  double Temp_mesh; //wall temperature
 
   //these are the triangles read from the STL file
   //index1:facet(triangle) index2:x y z

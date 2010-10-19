@@ -1,12 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML>
 <HEAD>
-	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=iso-8859-1">
 	<TITLE></TITLE>
-	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Linux)">
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Unix)">
 	<META NAME="CREATED" CONTENT="0;0">
-	<META NAME="CHANGEDBY" CONTENT="christophkloss ">
-	<META NAME="CHANGED" CONTENT="20100603;15145700">
+	<META NAME="CHANGED" CONTENT="20101019;13295500">
 	<STYLE TYPE="text/css">
 	<!--
 		H3.western { font-family: "Albany", sans-serif }
@@ -45,11 +44,15 @@ Documentation</A></FONT> <FONT FACE="Liberation Serif, serif">-
 	<LI><P STYLE="margin-bottom: 0in">phix, phiy, phiz = Angle of
 	geometry rotation around x-, y-, and z-axis (in grad) 
 	</P>
-	<LI><P STYLE="margin-bottom: 0in">conveyor = optional keyword for
-	conveyor belt model<BR><I>conveyor</I> values = vx vy vz</P>
+	<LI><P STYLE="margin-bottom: 0in">conveyor, temperature = optional
+	keywords for conveyor belt / heat transfer model<BR><I>conveyor</I>
+	values = vx vy vz</P>
 </UL>
 <UL>
-	<PRE>    vx = x-velocity of conveyor belt<BR>    vy = y-velocity of conveyor belt<BR>    vz = z-velocity of conveyor belt<BR>     <BR></PRE>
+	<PRE>    vx = x-velocity of conveyor belt (velocity units) 
+    vy = y-velocity of conveyor belt (velocity units) 
+    vz = z-velocity of conveyor belt (velocity units) 
+<I>temperature </I>value = T0<I><BR>  </I>  T0 = Temperature of the wall (temperature units)  </PRE>
 </UL>
 <P><B>Examples:</B> 
 </P>
@@ -82,6 +85,11 @@ given by the projection of the conveyor belt velocity parallel to the
 mesh face, the velocity magnitude for each mesh face is equal to the
 conveyor belt velocity. This ensures the model makes sense also in
 case the mesh is curved.</P>
+<P>With the temperature keyword, you can define a constant
+temperature for a mesh in conjunction with heat conduction via <A HREF="fix_heat_gran.html">fix
+heat/gran.</A>  Note that the actual calculation of the heat transfer
+happens only if you use the mesh in conjunction with a granular wall,
+see <A HREF="fix_wall_gran.html">fix wall/gran.</A></P>
 <P><B>Restart, fix_modify, output, run start/stop, minimize info:</B>
 </P>
 <P><FONT FACE="Liberation Serif, serif">This fix writes the STL data

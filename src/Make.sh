@@ -47,7 +47,8 @@ if (test $1 = "style") then
   style MINIMIZE_CLASS  min_        minimize   update
   style PAIR_CLASS      pair_       pair       force
   style REGION_CLASS    region_     region     domain
-  style COUPLING_CLASS  cfd_datacoupling_  datacoupling  fix_cfd_coupling
+  style CFD_DATACOUPLING_CLASS  cfd_datacoupling_  cfd_datacoupling  fix_cfd_coupling
+  style CFD_REGIONMODEL_CLASS  cfd_regionmodel_  cfd_regionmodel  fix_cfd_coupling
 
 # edit Makefile.lib
 # called by "make makelib"

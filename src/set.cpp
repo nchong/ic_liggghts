@@ -386,9 +386,12 @@ void Set::set(int keyword)
       else if (keyword == DIAMETER) {
 	atom->radius[i] = 0.5 * dvalue;
 	if (atom->rmass_flag && atom->density_flag)
-	  atom->rmass[i] = 4.0*PI/3.0 *
-	    atom->radius[i]*atom->radius[i]*atom->radius[i] * atom->density[i];
-
+	{
+       if (domain->dimension == 2) atom->rmass[i] = PI*
+	    atom->radius[i]*atom->radius[i] * atom->density[i]; 
+       else atom->rmass[i] = 4.0*PI/3.0 *
+	    atom->radius[i]*atom->radius[i]*atom->radius[i] * atom->density[i]; 
+	}
       // set density
       // set rmass (granular) if both rmass and radius are defined
       // set rmass (peri) if both rmass and vfrac are defined
@@ -400,11 +403,13 @@ void Set::set(int keyword)
         else updFix->vector_atom[i]=updValues[0];
 
       } else if (keyword == DENSITY) {
-	atom->density[i] = dvalue;
-	if (atom->rmass_flag && atom->radius_flag)
-	  atom->rmass[i] = 4.0*PI/3.0 *
-	    atom->radius[i]*atom->radius[i]*atom->radius[i] *
-	    atom->density[i];
+        atom->density[i] = dvalue;
+        if (atom->rmass_flag && atom->radius_flag){
+              if (domain->dimension == 2) atom->rmass[i] = PI*
+            atom->radius[i]*atom->radius[i] * atom->density[i]; 
+              else atom->rmass[i] = 4.0*PI/3.0 *
+            atom->radius[i]*atom->radius[i]*atom->radius[i] * atom->density[i]; 
+    }
 	else if (atom->rmass_flag && atom->vfrac_flag)
 	  atom->rmass[i] = dvalue;
 

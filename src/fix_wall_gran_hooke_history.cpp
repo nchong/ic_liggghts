@@ -38,6 +38,7 @@ See the README file in the top-level LAMMPS directory.
 #include "error.h"
 #include "triSpherePenetration.h"
 #include "fix_propertyGlobal.h"
+#include "fix_propertyPerAtom.h"
 #include "fix_meshGran.h"
 #include "fix_tri_neighlist.h"
 #include "comm.h"
@@ -57,6 +58,7 @@ enum{HOOKE,HOOKE_HISTORY,HERTZ_HISTORY};
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
 #define EPSILON_MOVINGMESH 1e-12
+#define SMALL 1e-8
 
 /* ---------------------------------------------------------------------- */
 
@@ -152,6 +154,7 @@ FixWallGranHookeHistory::FixWallGranHookeHistory(LAMMPS *lmp, int narg, char **a
 
   wiggle = 0;
   wshear = 0;
+  Temp_wall = -1.;
 
   while (iarg < narg) {
     if (strcmp(arg[iarg],"wiggle") == 0) {
@@ -175,7 +178,10 @@ FixWallGranHookeHistory::FixWallGranHookeHistory(LAMMPS *lmp, int narg, char **a
       vshear = atof(arg[iarg+2]);
       wshear = 1;
       iarg += 3;
-    } else error->all("Illegal fix wall/gran command");
+    } else if (strcmp(arg[iarg],"temperature") == 0) {
+        iarg++;
+        Temp_wall = atof(arg[iarg++]);
+    }else error->all("Illegal fix wall/gran command");
   }
 
   if (wallstyle == XPLANE_FWGHH && domain->xperiodic)
@@ -325,6 +331,7 @@ void FixWallGranHookeHistory::init()
   {
       if(strncmp(modify->fix[ifix]->style,"rigid",5)==0) fr=static_cast<FixRigid*>(modify->fix[ifix]);
   }
+
 }
 
 /* ---------------------------------------------------------------------- */
@@ -332,6 +339,8 @@ void FixWallGranHookeHistory::init()
 void FixWallGranHookeHistory::setup(int vflag)
 {
   
+  init_heattransfer();
+
   if ((wallstyle==MESHGRAN_FWGHH) && (fix_tri_neighlist==NULL)) registerTriNeighlist(1);
 
   if (strcmp(update->integrate_style,"verlet") == 0)
@@ -341,6 +350,30 @@ void FixWallGranHookeHistory::setup(int vflag)
     post_force_respa(vflag,nlevels_respa-1,0);
     ((Respa *) update->integrate)->copy_f_flevel(nlevels_respa-1);
   }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixWallGranHookeHistory::init_heattransfer()
+{
+    fppa_T = NULL;
+    fppa_hf = NULL;
+    deltan_ratio = NULL;
+    if (wallstyle != MESHGRAN_FWGHH && Temp_wall < 0.) return;
+    else if (wallstyle == MESHGRAN_FWGHH)
+    {
+        int heatflag = 0;
+        for(int imesh = 0; imesh < nFixMeshGran; imesh++)
+            heatflag = heatflag || FixMeshGranList[imesh]->Temp_mesh >= 0.;
+        if(!heatflag) return;
+    }
+    fppa_T = static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("Temp","property/peratom","scalar",1,0)]);
+    fppa_hf = static_cast<FixPropertyPerAtom*>(modify->fix[modify->find_fix_property("heatFlux","property/peratom","scalar",1,0)]);
+
+    th_cond = static_cast<FixPropertyGlobal*>(modify->fix[modify->find_fix_property("thermalConductivity","property/global","peratomtype",0,0)])->get_values();
+
+    int ifix = modify->find_fix_property("youngsModulusOriginal","property/global","peratomtype",0,0,false);
+    if(ifix >= 0) deltan_ratio = static_cast<FixPropertyGlobal*>(modify->fix[ifix])->get_array_modified();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -383,6 +416,12 @@ void FixWallGranHookeHistory::post_force(int vflag)
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
   double *shr;
+
+  if(fppa_T && fppa_hf)
+  {
+      Temp_p = fppa_T->vector_atom;
+      heatflux = fppa_hf->vector_atom;
+  }
 
   int iTri,iFMG;
   double deltan;
@@ -461,6 +500,7 @@ void FixWallGranHookeHistory::post_force(int vflag)
              if (shear!=NULL) shr=shear[i][0];
              
              compute_force(i,rsq,dx,dy,dz,vwall,v[i],f[i],omega[i],torque[i],radius[i],rmass[i],shr,kn,kt,gamman,gammat,xmu);
+             addHeatFlux(i,rsq,Temp_wall,atom_type_wall);
             
           }
       }
@@ -554,6 +594,8 @@ void FixWallGranHookeHistory::post_force(int vflag)
                         FixMeshGranList[iFMG]->add_particle_contribution(wallforce,contactPoint,iTri);
                   }
                   else compute_force(i,rsq,dx,dy,dz,vwall,v[i],f[i],omega[i],torque[i],radius[i],rmass[i],shr,kn,kt,gamman,gammat,xmu);
+
+                  addHeatFlux(i,rsq,FixMeshGranList[iFMG]->Temp_mesh,FixMeshGranList[iFMG]->atom_type_wall);
 
               }
               
@@ -792,6 +834,33 @@ void FixWallGranHookeHistory::compute_force(int ip, double rsq, double dx, doubl
 #define LMP_GRAN_DEFS_DEFINE
 #include "pair_gran_defs.h"
 #undef LMP_GRAN_DEFS_DEFINE
+
+inline void FixWallGranHookeHistory::addHeatFlux(int ip, double rsq,double T_wall, int walltype) 
+{
+    if(!fppa_T || !fppa_hf || T_wall < 0.) return;
+    //r is the distance between the sphere center and wall
+
+    double tcop, tcowall, hc, Acont, delta_n, r;
+
+    r = sqrt(rsq);
+
+    if(deltan_ratio)
+    {
+       delta_n = ri - r;
+       delta_n *= deltan_ratio[itype-1][walltype-1];
+       r = ri - delta_n;
+    }
+
+    Acont = (reff_wall*reff_wall-r*r)*M_PI; //contact area sphere-wall
+    tcop = th_cond[itype-1]; //types start at 1, array at 0
+    tcowall = th_cond[walltype-1];
+
+    if ((fabs(tcop) < SMALL) || (fabs(tcowall) < SMALL)) hc = 0.;
+    else hc = 4.*tcop*tcowall/(tcop+tcowall)*sqrt(Acont);
+
+    heatflux[ip] += (T_wall-Temp_p[ip]) * hc;
+    
+}
 
 inline void FixWallGranHookeHistory::addCohesionForce(int &ip, double &r, double &Fn_coh) 
 {

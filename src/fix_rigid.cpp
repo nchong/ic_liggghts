@@ -44,7 +44,9 @@ using namespace LAMMPS_NS;
 FixRigid::FixRigid(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg)
 {
-  
+  //not working correctly for 2d
+  if(domain->dimension == 2) error->warning("Fix rigid should not be used for 2d simulations - inertia is for 3d systems");
+
   if (strcmp(arg[3],"pseudo") == 0) return;
   if (strcmp(this->style,"rigid")!=0) return;
 

@@ -39,7 +39,7 @@ AtomVecGranular::AtomVecGranular(LAMMPS *lmp, int narg, char **arg) :
   comm_f_only = 0;
   size_forward = 3;
   size_reverse = 6;
-  size_border = 8;
+  size_border = 9;
   size_velocity = 6;
   size_data_atom = 7;
   size_data_vel = 7;
@@ -61,7 +61,7 @@ void AtomVecGranular::init()
   for (int i = 0; i < modify->nfix; i++)
       if (modify->fix[i]->rad_mass_vary_flag) {
         radvary = 1;
-        size_forward = 5;
+        size_forward = 6;
       }
 }
 
@@ -191,6 +191,7 @@ int AtomVecGranular::pack_comm(int n, int *list, double *buf,
 	buf[m++] = x[j][2];
 	buf[m++] = radius[j];
 	buf[m++] = rmass[j];
+	buf[m++] = density[j];
       }
     } else {
       if (domain->triclinic == 0) {
@@ -209,6 +210,7 @@ int AtomVecGranular::pack_comm(int n, int *list, double *buf,
 	buf[m++] = x[j][2] + dz;
 	buf[m++] = radius[j];
 	buf[m++] = rmass[j];
+	buf[m++] = density[j];
       }
     }
   }
@@ -273,6 +275,7 @@ int AtomVecGranular::pack_comm_vel(int n, int *list, double *buf,
 	buf[m++] = x[j][2];
 	buf[m++] = radius[j];
 	buf[m++] = rmass[j];
+	buf[m++] = density[j];
 	buf[m++] = v[j][0];
 	buf[m++] = v[j][1];
 	buf[m++] = v[j][2];
@@ -297,6 +300,7 @@ int AtomVecGranular::pack_comm_vel(int n, int *list, double *buf,
 	buf[m++] = x[j][2] + dz;
 	buf[m++] = radius[j];
 	buf[m++] = rmass[j];
+	buf[m++] = density[j];
 	buf[m++] = v[j][0];
 	buf[m++] = v[j][1];
 	buf[m++] = v[j][2];
@@ -318,7 +322,8 @@ int AtomVecGranular::pack_comm_one(int i, double *buf)
 
   buf[0] = radius[i];
   buf[1] = rmass[i];
-  return 2;
+  buf[2] = density[i];
+  return 3;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -344,6 +349,7 @@ void AtomVecGranular::unpack_comm(int n, int first, double *buf)
       x[i][2] = buf[m++];
       radius[i] = buf[m++];
       rmass[i] = buf[m++];
+      density[i] = buf[m++];
     }
   }
 }
@@ -377,6 +383,7 @@ void AtomVecGranular::unpack_comm_vel(int n, int first, double *buf)
       x[i][2] = buf[m++];
       radius[i] = buf[m++];
       rmass[i] = buf[m++];
+      density[i] = buf[m++];
       v[i][0] = buf[m++];
       v[i][1] = buf[m++];
       v[i][2] = buf[m++];
@@ -395,7 +402,8 @@ int AtomVecGranular::unpack_comm_one(int i, double *buf)
 
   radius[i] = buf[0];
   rmass[i] = buf[1];
-  return 2;
+  density[i] = buf[2];
+  return 3;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -475,6 +483,7 @@ int AtomVecGranular::pack_border(int n, int *list, double *buf,
       buf[m++] = mask[j];
       buf[m++] = radius[j];
       buf[m++] = rmass[j];
+      buf[m++] = density[j];
     }
   } else {
     if (domain->triclinic == 0) {
@@ -496,6 +505,7 @@ int AtomVecGranular::pack_border(int n, int *list, double *buf,
       buf[m++] = mask[j];
       buf[m++] = radius[j];
       buf[m++] = rmass[j];
+      buf[m++] = density[j];
     }
   }
   return m;
@@ -521,6 +531,7 @@ int AtomVecGranular::pack_border_vel(int n, int *list, double *buf,
       buf[m++] = mask[j];
       buf[m++] = radius[j];
       buf[m++] = rmass[j];
+      buf[m++] = density[j];
       buf[m++] = v[j][0];
       buf[m++] = v[j][1];
       buf[m++] = v[j][2];
@@ -548,6 +559,7 @@ int AtomVecGranular::pack_border_vel(int n, int *list, double *buf,
       buf[m++] = mask[j];
       buf[m++] = radius[j];
       buf[m++] = rmass[j];
+      buf[m++] = density[j];
       buf[m++] = v[j][0];
       buf[m++] = v[j][1];
       buf[m++] = v[j][2];
@@ -565,7 +577,8 @@ int AtomVecGranular::pack_border_one(int i, double *buf)
 {
   buf[0] = radius[i];
   buf[1] = rmass[i];
-  return 2;
+  buf[2] = density[i];
+  return 3;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -586,6 +599,7 @@ void AtomVecGranular::unpack_border(int n, int first, double *buf)
     mask[i] = static_cast<int> (buf[m++]);
     radius[i] = buf[m++];
     rmass[i] = buf[m++];
+    density[i] = buf[m++];
   }
 }
 
@@ -607,6 +621,7 @@ void AtomVecGranular::unpack_border_vel(int n, int first, double *buf)
     mask[i] = static_cast<int> (buf[m++]);
     radius[i] = buf[m++];
     rmass[i] = buf[m++];
+    density[i] = buf[m++];
     v[i][0] = buf[m++];
     v[i][1] = buf[m++];
     v[i][2] = buf[m++];
@@ -622,7 +637,8 @@ int AtomVecGranular::unpack_border_one(int i, double *buf)
 {
   radius[i] = buf[0];
   rmass[i] = buf[1];
-  return 2;
+  density[i] = buf[2];
+  return 3;
 }
 
 /* ----------------------------------------------------------------------
@@ -820,8 +836,10 @@ void AtomVecGranular::create_atom(int itype, double *coord)
 
   radius[nlocal] = 0.5;
   density[nlocal] = 1.0;
-  rmass[nlocal] = 4.0*PI/3.0 *
-    radius[nlocal]*radius[nlocal]*radius[nlocal] * density[nlocal];
+  if (domain->dimension == 2) rmass[nlocal] = PI *
+      radius[nlocal]*radius[nlocal]*density[nlocal]; 
+  else rmass[nlocal] = 4.0*PI/3.0 *
+    radius[nlocal]*radius[nlocal]*radius[nlocal] * density[nlocal]; 
   omega[nlocal][0] = 0.0;
   omega[nlocal][1] = 0.0;
   omega[nlocal][2] = 0.0;
@@ -857,8 +875,12 @@ void AtomVecGranular::data_atom(double *coord, int imagetmp, char **values)
 
   if (radius[nlocal] == 0.0) rmass[nlocal] = density[nlocal];
   else
-    rmass[nlocal] = 4.0*PI/3.0 *
+  {
+    if (domain->dimension == 2) rmass[nlocal] = PI *
+      radius[nlocal]*radius[nlocal]*density[nlocal]; 
+    else rmass[nlocal] = 4.0*PI/3.0 *
       radius[nlocal]*radius[nlocal]*radius[nlocal] * density[nlocal];
+  }
 
   x[nlocal][0] = coord[0];
   x[nlocal][1] = coord[1];

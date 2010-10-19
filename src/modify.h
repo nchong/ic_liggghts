@@ -75,7 +75,10 @@ class Modify : protected Pointers {
   void modify_fix(int, char **);
   void delete_fix(const char *);
   int find_fix(const char *);
+  class FixPropertyGlobal* add_fix_property_global(int narg,char **arg);
+  class FixPropertyPerAtom* add_fix_property_peratom(int narg,char **arg);
   int find_fix_property(const char *,const char *,const char *,int ,int );
+  int find_fix_property(const char *,const char *,const char *,int ,int,bool );
 
   void add_compute(int, char **);
   void modify_compute(int, char **);

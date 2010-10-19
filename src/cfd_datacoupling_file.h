@@ -17,9 +17,10 @@ the GNU General Public License.
 
 See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
-#ifdef COUPLING_CLASS
 
-   DataCouplingStyle(file,CfdDatacouplingFile)
+#ifdef CFD_DATACOUPLING_CLASS
+
+   CfdDataCouplingStyle(file,CfdDatacouplingFile)
 
 #else
 
@@ -32,7 +33,7 @@ namespace LAMMPS_NS {
 
 class CfdDatacouplingFile : public CfdDatacoupling {
  public:
-  CfdDatacouplingFile(class LAMMPS *, int, char **,class FixCfdCoupling* fc);
+  CfdDatacouplingFile(class LAMMPS *, int, int, char **,class FixCfdCoupling* fc);
   ~CfdDatacouplingFile();
 
   void pull(char *,char *,void *&);
@@ -46,8 +47,13 @@ class CfdDatacouplingFile : public CfdDatacoupling {
    void op_complete(char *name);
    void writeVectorData(char *name,  double ** field);
    void writeScalarData(char *name,  double * field);
+   void writeGlobalVectorData(char *name,  double * field,int);
+   void writeGlobalArrayData(char *name,  double ** field,int,int);
+
    void readVectorData(char *name,  double ** field);
    void readScalarData(char *name,  double * field);
+   void readGlobalVectorData(char* name, double *field, int &len);
+   void readGlobalArrayData(char *name, double ** field, int &len1, int &len2);
 
 };
 
