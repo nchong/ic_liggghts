@@ -25,6 +25,7 @@
 #include "pair_lj_cut_coul_debye.h"
 #include "pair_lj_cut_coul_long.h"
 #include "pair_lj_cut_coul_long_tip4p.h"
+#include "pair_lj_cut_gpu.h"
 #include "pair_lj_expand.h"
 #include "pair_lj_gromacs.h"
 #include "pair_lj_gromacs_coul_gromacs.h"
