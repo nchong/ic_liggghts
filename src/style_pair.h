@@ -11,6 +11,7 @@
 #include "pair_eam_alloy.h"
 #include "pair_eam_fs.h"
 #include "pair_gran_hertz_history.h"
+#include "pair_gran_hertz_history_gpu.h"
 #include "pair_gran_hertzcustom_history.h"
 #include "pair_gran_hooke.h"
 #include "pair_gran_hooke_history.h"

@@ -37,6 +37,7 @@ PAIR_H  = pair_gpu_texture.h pair_gpu_atom.h pair_gpu_nbor.h pair_gpu_cell.h
 # Dependencies for the Texture Tar
 TAR_H = $(NVC_H) $(PAIR_H) pair_gpu_atom.cu lj_gpu_memory.h lj_gpu_memory.cu \
         lj_gpu_kernel.h lj_gpu.cu gb_gpu_memory.h gb_gpu_memory.cu \
+        hertz_gpu_kernel.h hertz_gpu.cu \
         gb_gpu_extra.h gb_gpu_kernel.h gb_gpu.cu
 
 ALL_H = $(NVC_H) $(PAIR_H)

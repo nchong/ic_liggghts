@@ -80,6 +80,13 @@ EXTERN bool lj_gpu_init(int &ij_size, const int ntypes, double **cutsq,double **
   ncellx = ceil(((boxhi[0] - boxlo[0]) + 2.0*cell_size) / cell_size);
   ncelly = ceil(((boxhi[1] - boxlo[1]) + 2.0*cell_size) / cell_size);
   ncellz = ceil(((boxhi[2] - boxlo[2]) + 2.0*cell_size) / cell_size);
+  printf("> lj_gpu_init\n");
+  printf("> cell_size = %f\n", cell_size);
+  printf("> boxhi = {%f, %f, %f}; boxlo = {%f, %f, %f}\n", 
+    boxhi[0], boxhi[1], boxhi[2],
+    boxlo[0], boxlo[1], boxlo[2]);
+  printf("> ncellx = %d; ncelly = %d; ncellz = %d;\n",
+    ncellx, ncelly, ncellz);
    
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
 

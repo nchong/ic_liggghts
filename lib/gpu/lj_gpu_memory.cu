@@ -17,6 +17,10 @@
                          Paul Crozier (SNL), pscrozi@sandia.gov
 ------------------------------------------------------------------------- */
 
+#ifndef LJ_GPU_MEMORY
+
+#define LJ_GPU_MEMORY
+
 #include "lj_gpu_memory.h"
 #define LJ_GPU_MemoryT LJ_GPU_Memory<numtyp, acctyp>
 
@@ -145,3 +149,5 @@ double LJ_GPU_MemoryT::host_memory_usage() const {
 }
 
 template class LJ_GPU_Memory<PRECISION,ACC_PRECISION>;
+
+#endif

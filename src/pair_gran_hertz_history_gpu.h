@@ -11,20 +11,33 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-/* ----------------------------------------------------------------------
-   Contributing authors: Mike Brown (SNL), wmbrown@sandia.gov
-                         Peng Wang (Nvidia), penwang@nvidia.com
-                         Paul Crozier (SNL), pscrozi@sandia.gov
-------------------------------------------------------------------------- */
+#ifdef PAIR_CLASS
 
-#if defined(__APPLE__)
-#if _GLIBCXX_ATOMIC_BUILTINS == 1
-#undef _GLIBCXX_ATOMIC_BUILTINS
-#endif // _GLIBCXX_ATOMIC_BUILTINS
-#endif // __APPLE__
+PairStyle(gran/hertz/history/gpu,PairGranHertzHistoryGPU)
 
-#include "pair_gpu_atom.cu"
-#include "lj_gpu.cu"
-#include "hertz_gpu.cu"
-#include "gb_gpu.cu"
+#else
 
+#ifndef LMP_PAIR_GRAN_HERTZ_HISTORY_GPU_H
+#define LMP_PAIR_GRAN_HERTZ_HISTORY_GPU_H
+
+#include "pair_gran_hertz_history.h"
+
+namespace LAMMPS_NS {
+
+class PairGranHertzHistoryGPU : public PairGranHertzHistory {
+ public:
+  PairGranHertzHistoryGPU(LAMMPS *lmp);
+  ~PairGranHertzHistoryGPU();
+  //void compute(int, int);
+  //void settings(int, char **);
+  void init_style();
+  //double memory_usage();
+
+  enum { ONE_NODE, ONE_GPU, MULTI_GPU };
+
+ private:  
+};
+
+}
+#endif
+#endif

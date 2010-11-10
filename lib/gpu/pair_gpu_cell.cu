@@ -35,6 +35,11 @@ static __constant__ float d_skin[1];
 void init_cell_list_const(double cell_size, double skin,
 			  double *boxlo, double *boxhi)
 {
+  printf("> init_cell_list_const cell_size=%f\n", cell_size);
+  printf(">                      skin=%f\n", skin);
+  printf(">                      boxlo= {%f, %f, %f}\n", boxlo[0], boxlo[1], boxlo[2]);
+  printf(">                      boxhi= {%f, %f, %f}\n", boxhi[0], boxhi[1], boxhi[2]);
+
   float cell_size1 = cell_size;
   float skin1 = skin;
   float boxlo1[3], boxhi1[3];

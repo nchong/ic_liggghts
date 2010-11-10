@@ -17,14 +17,22 @@
                          Paul Crozier (SNL), pscrozi@sandia.gov
 ------------------------------------------------------------------------- */
 
-#if defined(__APPLE__)
-#if _GLIBCXX_ATOMIC_BUILTINS == 1
-#undef _GLIBCXX_ATOMIC_BUILTINS
-#endif // _GLIBCXX_ATOMIC_BUILTINS
-#endif // __APPLE__
+#ifndef HERTZ_GPU_KERNEL
+#define HERTZ_GPU_KERNEL
 
-#include "pair_gpu_atom.cu"
-#include "lj_gpu.cu"
-#include "hertz_gpu.cu"
-#include "gb_gpu.cu"
+/* Cell list version of hertz kernel */
+template<bool eflag, bool vflag, int blockSize>
+__global__ void kernel_hertz_cell()
+{
+  // calculate 3D block idx from 2d block
+  int bx = blockIdx.x;
+  int by = blockIdx.y % ncelly;
+  int bz = blockIdx.y / ncelly;
 
+  int tid = threadIdx.x;
+  
+  // compute cell idx from 3D block idx
+  int cid = bx + INT_MUL(by, ncellx) + INT_MUL(bz, INT_MUL(ncellx,ncelly));
+}
+
+#endif
