@@ -22,6 +22,8 @@ See the README file in the top-level LAMMPS directory.
    Contributing authors for original version: Leo Silbert (SNL), Gary Grest (SNL)
 ------------------------------------------------------------------------- */
 
+//#define EMIT_PAIRWISE //< Write to [pairwise_data.csv] for [play/hertz.cu]
+
 #include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -167,6 +169,11 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 
   // loop over neighbors of my atoms
 
+#ifdef EMIT_PAIRWISE
+  static bool first_call = true;
+  FILE *ofile = fopen("pairwise_data.csv", "a");
+#endif
+
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
     xtmp = x[i][0];
@@ -193,12 +200,75 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 	// unset non-touching neighbors
 
         touch[jj] = 0;
-	shear = &allshear[3*jj];
+        shear = &allshear[3*jj];
         shear[0] = 0.0;
         shear[1] = 0.0;
         shear[2] = 0.0;
 
       } else {
+#ifdef EMIT_PAIRWISE
+        if (first_call) {
+          first_call = false;
+          printf("compute eflag=%d vflag=%d cohesionflag=%d\n", eflag, vflag, cohesionflag);
+          printf("freeze_group_bit[i]=%d freeze_group_bit[j]=%d\n",
+            mask[i] & freeze_group_bit,
+            mask[j] & freeze_group_bit);
+
+          // fixed parameters need to be copy+pasted
+          printf("float dt = %f;\n", dt);
+          printf("float Yeff[%d][%d];\n",
+            (mpg->max_type+1),
+            (mpg->max_type+1));
+          printf("float Geff[%d][%d];\n",
+            (mpg->max_type+1),
+            (mpg->max_type+1));
+          printf("float betaeff[%d][%d];\n",
+            (mpg->max_type+1),
+            (mpg->max_type+1));
+          printf("float coeffFrict[%d][%d];\n",
+            (mpg->max_type+1),
+            (mpg->max_type+1));
+          // nb: type 0 is not defined
+          for (int p=1; p<(mpg->max_type+1); p++) {
+            for (int q=1; q<(mpg->max_type+1); q++) {
+              printf("Yeff[%d][%d] = %f;\n", p,q,mpg->Yeff[p][q]);
+              printf("Geff[%d][%d] = %f;\n", p,q,mpg->Geff[p][q]);
+              printf("betaeff[%d][%d] = %f;\n", p,q,mpg->betaeff[p][q]);
+              printf("coeffFrict[%d][%d] = %f;\n", p,q,mpg->coeffFrict[p][q]);
+            }
+          }
+          printf("float nktv2p = %f;\n", force->nktv2p);
+          printf("int typei = %d;\nint typej = %d;\n", type[i], type[j]);
+          printf("int max_type = %d;\n", (mpg->max_type+1));
+        }
+        fprintf(ofile, "%f, %f, %f, %f, %f, %f, ",
+          x[i][0], x[i][1], x[i][2],
+          x[j][0], x[j][1], x[j][2]
+        );
+        fprintf(ofile, "%f, %f, %f, %f, %f, %f, ",
+          v[i][0], v[i][1], v[i][2],
+          v[j][0], v[j][1], v[j][2]
+        );
+        fprintf(ofile, "%f, %f, %f, %f, %f, %f, ",
+          omega[i][0], omega[i][1], omega[i][2],
+          omega[j][0], omega[j][1], omega[j][2]
+        );
+        fprintf(ofile, "%f, %f, ",
+          radius[i], radius[j]);
+        fprintf(ofile, "%f, %f, ",
+          rmass[i], rmass[j]);
+        //fprintf(ofile, "%f, %f, ",
+        //  mass[type[i]], mass[type[j]]);
+
+        double *shear = &allshear[3*jj];
+        fprintf(ofile, "%f, %f, %f, ",
+          shear[0], shear[1], shear[2]);
+        fprintf(ofile, "%f, %f, %f, ",
+          torque[i][0], torque[i][1], torque[i][2]);
+        fprintf(ofile, "%f, %f, %f, ",
+          f[i][0], f[i][1], f[i][2]);
+#endif
+
 	r = sqrt(rsq);
 	rinv = 1.0/r;
 	rsqinv = 1.0/rsq;
@@ -240,7 +310,7 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 	  mi=mass[itype];
 	  mj=mass[jtype];
 	}
-	if (fr)
+	if (fr) //deadcode?
 	{
 	   if(fr->body[i]>=0) double mi=fr->masstotal[fr->body[i]];  
 	   if(fr->body[j]>=0) double mj=fr->masstotal[fr->body[j]];  
@@ -265,7 +335,7 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 	vtr1 = vt1 - (delz*wr2-dely*wr3);
 	vtr2 = vt2 - (delx*wr3-delz*wr1);
 	vtr3 = vt3 - (dely*wr1-delx*wr2);
-	vrel = vtr1*vtr1 + vtr2*vtr2 + vtr3*vtr3;
+	vrel = vtr1*vtr1 + vtr2*vtr2 + vtr3*vtr3; //deadcode?
 	vrel = sqrt(vrel);
 
 	// shear history effects
@@ -327,6 +397,15 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 	torque[i][1] -= radi*tor2;
 	torque[i][2] -= radi*tor3;
 
+#ifdef EMIT_PAIRWISE
+  fprintf(ofile, "%f, %f, %f, ",
+    shear[0], shear[1], shear[2]);
+  fprintf(ofile, "%f, %f, %f, ",
+    torque[i][0], torque[i][1], torque[i][2]);
+  fprintf(ofile, "%f, %f, %f\n",
+    f[i][0], f[i][1], f[i][2]);
+#endif
+
 	if (j < nlocal) {
 	  f[j][0] -= fx;
 	  f[j][1] -= fy;
@@ -341,6 +420,10 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
       }
     }
   }
+
+#ifdef EMIT_PAIRWISE
+  fclose(ofile);
+#endif
 }
 
 /* ----------------------------------------------------------------------
