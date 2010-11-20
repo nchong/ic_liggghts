@@ -10,26 +10,26 @@
 
 // testcase datastructure
 struct params {
-  float xi[3]; float xj[3];
-  float vi[3]; float vj[3];
-  float omegai[3]; float omegaj[3];
-  float radi; float radj;
-  float rmassi; float rmassj;
-  float massi; float massj;
-  float shear[3]; float torque[3]; float force[3];
-  float expected_shear[3]; float expected_torque[3]; float expected_force[3];
+  double xi[3]; double xj[3];
+  double vi[3]; double vj[3];
+  double omegai[3]; double omegaj[3];
+  double radi; double radj;
+  double rmassi; double rmassj;
+  double massi; double massj;
+  double shear[3]; double torque[3]; double force[3];
+  double expected_shear[3]; double expected_torque[3]; double expected_force[3];
 };
 
 struct params parse_csv_string(const char *str) {
   struct params result;
   sscanf(str,
-    "%f, %f, %f, %f, %f, %f, "                //x
-    "%f, %f, %f, %f, %f, %f, "                //v
-    "%f, %f, %f, %f, %f, %f, "                //omega
-    "%f, %f, "                                //radius
-    "%f, %f, "                                //rmass
-    "%f, %f, %f, %f, %f, %f, %f, %f, %f, "    //shear, torque, force
-    "%f, %f, %f, %f, %f, %f, %f, %f, %f, ",   //*expected* shear, torque, force
+    "%lf, %lf, %lf, %lf, %lf, %lf, "                   //x
+    "%lf, %lf, %lf, %lf, %lf, %lf, "                   //v
+    "%lf, %lf, %lf, %lf, %lf, %lf, "                   //omega
+    "%lf, %lf, "                                       //radius
+    "%lf, %lf, "                                       //rmass
+    "%lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, "    //shear, torque, force
+    "%lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, ",   //*expected* shear, torque, force
     &result.xi[0], &result.xi[1], &result.xi[2],
     &result.xj[0], &result.xj[1], &result.xj[2],
     &result.vi[0], &result.vi[1], &result.vi[2],
@@ -49,15 +49,15 @@ struct params parse_csv_string(const char *str) {
   return result;
 }
 
-bool check_result_vector(const char* id, float expected[3], float actual[3], const float epsilon) {
-  static bool verbose = false;
+bool check_result_vector(const char* id, double expected[3], double actual[3], const double epsilon) {
+  static bool verbose = true;
   bool flag = (fabs(expected[0] - actual[0]) > epsilon ||
                fabs(expected[1] - actual[1]) > epsilon ||
                fabs(expected[2] - actual[2]) > epsilon);
   const char *marker = flag ? "***" : "   ";
 
   if (flag || verbose) {
-    printf("%s%s: {%f, %f, %f} / {%f, %f, %f}%s\n",
+    printf("%s%s: {%.16f, %.16f, %.16f} / {%.16f, %.16f, %.16f}%s\n",
         marker,
         id,
         expected[0], expected[1], expected[2],
@@ -72,69 +72,73 @@ bool check_result_vector(const char* id, float expected[3], float actual[3], con
 // GPU Kernel
 // --------------------------------------------------------------------------
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
+
 __global__ void pair_interaction(
   //inputs
-    float *xi, float *xj,           //position
-    float *vi, float *vj,           //velocity
-    float *omegai, float *omegaj,   //rotational velocity
-    float radi, float radj,         //radius
-    float rmassi, float rmassj,     //] mass
-    float massi, float massj,       //]
+    double *xi, double *xj,           //position
+    double *vi, double *vj,           //velocity
+    double *omegai, double *omegaj,   //rotational velocity
+    double radi, double radj,         //radius
+    double rmassi, double rmassj,     //] mass
+    double massi, double massj,       //]
     int typei, int typej,           //type
-    float dt,                       //timestep
+    double dt,                       //timestep
 
   //contact model parameters inputs
     int num_atom_types,
-    float *Yeff,
-    float *Geff,
-    float *betaeff,
-    float *coeffFrict,
-    float nktv2p,
+    double *Yeff,
+    double *Geff,
+    double *betaeff,
+    double *coeffFrict,
+    double nktv2p,
 
   //inouts
-    float *shear,
-    float *torque,
-    float *force) {
+    double *shear,
+    double *torque,
+    double *force) {
 
   // del is the vector from j to i
-  float delx = xi[0] - xj[0];
-  float dely = xi[1] - xj[1];
-  float delz = xi[2] - xj[2];
+  double delx = xi[0] - xj[0];
+  double dely = xi[1] - xj[1];
+  double delz = xi[2] - xj[2];
 
-  float rsq = delx*delx + dely*dely + delz*delz;
-  float radsum = radi + radj;
+  double rsq = delx*delx + dely*dely + delz*delz;
+  double radsum = radi + radj;
   if (rsq >= radsum*radsum) {
     //unset non-touching atoms
+    shear[0] = 0.0;
+    shear[1] = 0.0;
+    shear[2] = 0.0;
   } else {
     //distance between centres of atoms i and j
     //or, magnitude of del vector
-    float r = sqrt(rsq);
-    float rinv = 1.0/r;
-    float rsqinv = 1.0/rsq;
+    double r = sqrt(rsq);
+    double rinv = 1.0/r;
+    double rsqinv = 1.0/rsq;
 	
     // relative translational velocity
-    float vr1 = vi[0] - vj[0];
-    float vr2 = vi[1] - vj[1];
-    float vr3 = vi[2] - vj[2];
+    double vr1 = vi[0] - vj[0];
+    double vr2 = vi[1] - vj[1];
+    double vr3 = vi[2] - vj[2];
 
     // normal component
-    float vnnr = vr1*delx + vr2*dely + vr3*delz;
-    float vn1 = delx*vnnr * rsqinv;
-    float vn2 = dely*vnnr * rsqinv;
-    float vn3 = delz*vnnr * rsqinv;
+    double vnnr = vr1*delx + vr2*dely + vr3*delz;
+    double vn1 = delx*vnnr * rsqinv;
+    double vn2 = dely*vnnr * rsqinv;
+    double vn3 = delz*vnnr * rsqinv;
 
     // tangential component
-    float vt1 = vr1 - vn1;
-    float vt2 = vr2 - vn2;
-    float vt3 = vr3 - vn3;
+    double vt1 = vr1 - vn1;
+    double vt2 = vr2 - vn2;
+    double vt3 = vr3 - vn3;
 
     // relative rotational velocity
-    float wr1 = (radi*omegai[0] + radj*omegaj[0]) * rinv;
-    float wr2 = (radi*omegai[1] + radj*omegaj[1]) * rinv;
-    float wr3 = (radi*omegai[2] + radj*omegaj[2]) * rinv;
+    double wr1 = (radi*omegai[0] + radj*omegaj[0]) * rinv;
+    double wr2 = (radi*omegai[1] + radj*omegaj[1]) * rinv;
+    double wr3 = (radi*omegai[2] + radj*omegaj[2]) * rinv;
 
     // normal forces = Hookian contact + normal velocity damping
-    float mi,mj;
+    double mi,mj;
     if (rmassi && rmassj) {
       mi=rmassi;
       mj=rmassj;
@@ -145,37 +149,37 @@ __global__ void pair_interaction(
       //this should never fire
       return;
     }
-    float meff = mi*mj/(mi+mj);
+    double meff = mi*mj/(mi+mj);
     //not-implemented: freeze_group_bit
 
-    float deltan = radsum-r;
+    double deltan = radsum-r;
 
     //derive contact model parameters (inlined)
     //Yeff, Geff, betaeff, coeffFrict are lookup tables
     //todo: put these in shared memory
     int typeij = typei + (typej * num_atom_types);
-    float reff = radi * radj / (radi + radj);
-    float sqrtval = sqrt(reff * deltan);
-    float Sn = 2.    * Yeff[typeij] * sqrtval;
-    float St = 8.    * Geff[typeij] * sqrtval;
-    float kn = 4./3. * Yeff[typeij] * sqrtval;
-    float kt = St;
-    float gamman=-2.*sqrtFiveOverSix*betaeff[typeij]*sqrt(Sn*meff);
-    float gammat=-2.*sqrtFiveOverSix*betaeff[typeij]*sqrt(St*meff);
-    float xmu=coeffFrict[typeij];
+    double reff = radi * radj / (radi + radj);
+    double sqrtval = sqrt(reff * deltan);
+    double Sn = 2.    * Yeff[typeij] * sqrtval;
+    double St = 8.    * Geff[typeij] * sqrtval;
+    double kn = 4./3. * Yeff[typeij] * sqrtval;
+    double kt = St;
+    double gamman=-2.*sqrtFiveOverSix*betaeff[typeij]*sqrt(Sn*meff);
+    double gammat=-2.*sqrtFiveOverSix*betaeff[typeij]*sqrt(St*meff);
+    double xmu=coeffFrict[typeij];
+    //not-implemented if (dampflag == 0) gammat = 0;
     kn /= nktv2p;
     kt /= nktv2p;
 
-    //if dampflag gammat = 0
-    float damp = gamman*vnnr*rsqinv;
-	  float ccel = kn*(radsum-r)*rinv - damp;
+    double damp = gamman*vnnr*rsqinv;
+	  double ccel = kn*(radsum-r)*rinv - damp;
 
     //not-implemented cohesionflag
 
     // relative velocities
-    float vtr1 = vt1 - (delz*wr2-dely*wr3);
-    float vtr2 = vt2 - (delx*wr3-delz*wr1);
-    float vtr3 = vt3 - (dely*wr1-delx*wr2);
+    double vtr1 = vt1 - (delz*wr2-dely*wr3);
+    double vtr2 = vt2 - (delx*wr3-delz*wr1);
+    double vtr3 = vt3 - (dely*wr1-delx*wr2);
 
     // shear history effects
     shear[0] += vtr1 * dt;
@@ -183,7 +187,7 @@ __global__ void pair_interaction(
     shear[2] += vtr3 * dt;
 
     // rotate shear displacements
-    float rsht = shear[0]*delx + shear[1]*dely + shear[2]*delz;
+    double rsht = shear[0]*delx + shear[1]*dely + shear[2]*delz;
     rsht *= rsqinv;
 
     shear[0] -= rsht*delx;
@@ -191,15 +195,16 @@ __global__ void pair_interaction(
     shear[2] -= rsht*delz;
 
     // tangential forces = shear + tangential velocity damping
-    float fs1 = - (kt*shear[0] + gammat*vtr1);
-    float fs2 = - (kt*shear[1] + gammat*vtr2);
-    float fs3 = - (kt*shear[2] + gammat*vtr3);
+    double fs1 = - (kt*shear[0] + gammat*vtr1);
+    double fs2 = - (kt*shear[1] + gammat*vtr2);
+    double fs3 = - (kt*shear[2] + gammat*vtr3);
 
     // rescale frictional displacements and forces if needed
-    float fs = sqrt(fs1*fs1 + fs2*fs2 + fs3*fs3);
-    float fn = xmu * fabs(ccel*r);
+    double fs = sqrt(fs1*fs1 + fs2*fs2 + fs3*fs3);
+    double fn = xmu * fabs(ccel*r);
+    double shrmag = 0;
     if (fs > fn) {
-      float shrmag = sqrt(shear[0]*shear[0] +
+      shrmag = sqrt(shear[0]*shear[0] +
                           shear[1]*shear[1] +
                           shear[2]*shear[2]);
       if (shrmag != 0.0) {
@@ -214,14 +219,18 @@ __global__ void pair_interaction(
       }
     }
 
-    float tor1 = rinv * (dely*fs3 - delz*fs2);
-    float tor2 = rinv * (delz*fs1 - delx*fs3);
-    float tor3 = rinv * (delx*fs2 - dely*fs1);
+    double fx = delx*ccel + fs1;
+    double fy = dely*ccel + fs2;
+    double fz = delz*ccel + fs3;
+
+    double tor1 = rinv * (dely*fs3 - delz*fs2);
+    double tor2 = rinv * (delz*fs1 - delx*fs3);
+    double tor3 = rinv * (delx*fs2 - dely*fs1);
 
     // this is what we've been working up to!
-    force[0] += delx*ccel + fs1;
-    force[1] += dely*ccel + fs2;
-    force[2] += delz*ccel + fs3;
+    force[0] += fx;
+    force[1] += fy;
+    force[2] += fz;
 
     torque[0] -= radi*tor1;
     torque[1] -= radi*tor2;
@@ -234,55 +243,55 @@ __global__ void pair_interaction(
 // --------------------------------------------------------------------------
 int main(void) {
   // Stiffness lookup tables (indexed on atom type)
-  float Yeff[2][2];
-  float Geff[2][2];
-  float betaeff[2][2];
-  float coeffFrict[2][2];
+  double Yeff[2][2];
+  double Geff[2][2];
+  double betaeff[2][2];
+  double coeffFrict[2][2];
 
   // Inputs fixed across testcases
-  float dt = 0.000010;
-  Yeff[1][1] = 3134796.238245;
-  Geff[1][1] = 556173.526140;
-  betaeff[1][1] = -0.357857;
-  coeffFrict[1][1] = 0.500000;
-  float nktv2p = 1.000000;
+  double dt = 0.000010;
+  Yeff[1][1] = 3134796.2382445144467056;
+  Geff[1][1] = 556173.5261401557363570;
+  betaeff[1][1] = -0.3578571305033167;
+  coeffFrict[1][1] = 0.5000000000000000;
+  double nktv2p = 1.000000;
   int typei = 1;
   int typej = 1;
   int max_type = 2;
 
   // Device versions of inputs
-  float *d_xi; float *d_xj;
-  float *d_vi; float *d_vj;
-  float *d_omegai; float *d_omegaj;
-  // not required for float inputs (rad, rmass, mass, type and dt)
-  float *d_Yeff;
-  float *d_Geff;
-  float *d_betaeff;
-  float *d_coeffFrict;
-  float *d_shear;
-  float *d_torque;
-  float *d_force;
+  double *d_xi; double *d_xj;
+  double *d_vi; double *d_vj;
+  double *d_omegai; double *d_omegaj;
+  // not required for double inputs (rad, rmass, mass, type and dt)
+  double *d_Yeff;
+  double *d_Geff;
+  double *d_betaeff;
+  double *d_coeffFrict;
+  double *d_shear;
+  double *d_torque;
+  double *d_force;
 
   // Device allocation of input parameters
-  cudaMalloc((void**)&d_xi, sizeof(float)*3);
-  cudaMalloc((void**)&d_xj, sizeof(float)*3);
-  cudaMalloc((void**)&d_vi, sizeof(float)*3);
-  cudaMalloc((void**)&d_vj, sizeof(float)*3);
-  cudaMalloc((void**)&d_omegai, sizeof(float)*3);
-  cudaMalloc((void**)&d_omegaj, sizeof(float)*3);
-  cudaMalloc((void**)&d_Yeff, sizeof(float)*max_type*max_type);
-  cudaMalloc((void**)&d_Geff, sizeof(float)*max_type*max_type);
-  cudaMalloc((void**)&d_betaeff, sizeof(float)*max_type*max_type);
-  cudaMalloc((void**)&d_coeffFrict, sizeof(float)*max_type*max_type);
-  cudaMalloc((void**)&d_shear, sizeof(float)*3);
-  cudaMalloc((void**)&d_torque, sizeof(float)*3);
-  cudaMalloc((void**)&d_force, sizeof(float)*3);
+  cudaMalloc((void**)&d_xi, sizeof(double)*3);
+  cudaMalloc((void**)&d_xj, sizeof(double)*3);
+  cudaMalloc((void**)&d_vi, sizeof(double)*3);
+  cudaMalloc((void**)&d_vj, sizeof(double)*3);
+  cudaMalloc((void**)&d_omegai, sizeof(double)*3);
+  cudaMalloc((void**)&d_omegaj, sizeof(double)*3);
+  cudaMalloc((void**)&d_Yeff, sizeof(double)*max_type*max_type);
+  cudaMalloc((void**)&d_Geff, sizeof(double)*max_type*max_type);
+  cudaMalloc((void**)&d_betaeff, sizeof(double)*max_type*max_type);
+  cudaMalloc((void**)&d_coeffFrict, sizeof(double)*max_type*max_type);
+  cudaMalloc((void**)&d_shear, sizeof(double)*3);
+  cudaMalloc((void**)&d_torque, sizeof(double)*3);
+  cudaMalloc((void**)&d_force, sizeof(double)*3);
 
   // Flatten 2D lookup tables into contiguous memory
-  float *h_Yeff = (float *)malloc(sizeof(float)*max_type*max_type);
-  float *h_Geff = (float *)malloc(sizeof(float)*max_type*max_type);
-  float *h_betaeff = (float *)malloc(sizeof(float)*max_type*max_type);
-  float *h_coeffFrict = (float *)malloc(sizeof(float)*max_type*max_type);
+  double *h_Yeff = (double *)malloc(sizeof(double)*max_type*max_type);
+  double *h_Geff = (double *)malloc(sizeof(double)*max_type*max_type);
+  double *h_betaeff = (double *)malloc(sizeof(double)*max_type*max_type);
+  double *h_coeffFrict = (double *)malloc(sizeof(double)*max_type*max_type);
   for (int i=0; i<max_type; i++) {
     for (int j=0; j<max_type; j++) {
       h_Yeff[i + (j*max_type)] = Yeff[i][j];
@@ -291,10 +300,10 @@ int main(void) {
       h_coeffFrict[i + (j*max_type)] = coeffFrict[i][j];
     }
   }
-  cudaMemcpy(d_Yeff, h_Yeff, sizeof(float)*max_type*max_type, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_Geff, h_Geff, sizeof(float)*max_type*max_type, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_betaeff, h_betaeff, sizeof(float)*max_type*max_type, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_coeffFrict, h_coeffFrict, sizeof(float)*max_type*max_type, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_Yeff, h_Yeff, sizeof(double)*max_type*max_type, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_Geff, h_Geff, sizeof(double)*max_type*max_type, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_betaeff, h_betaeff, sizeof(double)*max_type*max_type, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_coeffFrict, h_coeffFrict, sizeof(double)*max_type*max_type, cudaMemcpyHostToDevice);
 
   // Open testcase datafile
   std::ifstream data("pairwise_data.csv", std::fstream::in);
@@ -307,15 +316,15 @@ int main(void) {
   std::string line;
   while(std::getline(data, line)) {
     struct params testcase = parse_csv_string(line.c_str());
-    cudaMemcpy(d_xi, testcase.xi, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_xj, testcase.xj, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_vi, testcase.vi, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_vj, testcase.vj, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_omegai, testcase.omegai, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_omegaj, testcase.omegaj, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_shear, testcase.shear, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_torque, testcase.torque, sizeof(float)*3, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_force, testcase.force, sizeof(float)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_xi, testcase.xi, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_xj, testcase.xj, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vi, testcase.vi, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vj, testcase.vj, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_omegai, testcase.omegai, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_omegaj, testcase.omegaj, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_shear, testcase.shear, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_torque, testcase.torque, sizeof(double)*3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_force, testcase.force, sizeof(double)*3, cudaMemcpyHostToDevice);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
@@ -323,6 +332,7 @@ int main(void) {
       exit(-1);
     }
 
+    cudaPrintfInit();
     pair_interaction<<<1,1>>>(
       d_xi,d_xj,
       d_vi,d_vj,
@@ -342,6 +352,9 @@ int main(void) {
 
       d_shear, d_torque, d_force);
 
+    cudaPrintfDisplay(stdout, true);
+    cudaPrintfEnd();
+
     cudaThreadSynchronize();
     err = cudaGetLastError();
     if (err != cudaSuccess) {
@@ -350,14 +363,14 @@ int main(void) {
     }
 
     // Check results
-    float shear[3];
-    float torque[3];
-    float force[3];
-    cudaMemcpy(shear, d_shear, sizeof(float)*3, cudaMemcpyDeviceToHost);
-    cudaMemcpy(torque, d_torque, sizeof(float)*3, cudaMemcpyDeviceToHost);
-    cudaMemcpy(force, d_force, sizeof(float)*3, cudaMemcpyDeviceToHost);
+    double shear[3];
+    double torque[3];
+    double force[3];
+    cudaMemcpy(shear, d_shear, sizeof(double)*3, cudaMemcpyDeviceToHost);
+    cudaMemcpy(torque, d_torque, sizeof(double)*3, cudaMemcpyDeviceToHost);
+    cudaMemcpy(force, d_force, sizeof(double)*3, cudaMemcpyDeviceToHost);
 
-    const float epsilon = 0.00001;
+    const double epsilon = 0.00001;
     check_result_vector("shear ", testcase.expected_shear, shear, epsilon);
     check_result_vector("torque", testcase.expected_torque, torque, epsilon);
     check_result_vector("force ", testcase.expected_force, force, epsilon);

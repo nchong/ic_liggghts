@@ -22,7 +22,7 @@ See the README file in the top-level LAMMPS directory.
    Contributing authors for original version: Leo Silbert (SNL), Gary Grest (SNL)
 ------------------------------------------------------------------------- */
 
-//#define EMIT_PAIRWISE //< Write to [pairwise_data.csv] for [play/hertz.cu]
+#define EMIT_PAIRWISE //< Write to [pairwise_data.csv] for [play/hertz.cu]
 
 #include "math.h"
 #include "stdio.h"
@@ -209,13 +209,14 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 #ifdef EMIT_PAIRWISE
         if (first_call) {
           first_call = false;
-          printf("compute eflag=%d vflag=%d cohesionflag=%d\n", eflag, vflag, cohesionflag);
+          printf("dampflag=%d\n", dampflag);
+          printf("eflag=%d vflag=%d cohesionflag=%d\n", eflag, vflag, cohesionflag);
           printf("freeze_group_bit[i]=%d freeze_group_bit[j]=%d\n",
             mask[i] & freeze_group_bit,
             mask[j] & freeze_group_bit);
 
           // fixed parameters need to be copy+pasted
-          printf("float dt = %f;\n", dt);
+          printf("float dt = %.16f;\n", dt);
           printf("float Yeff[%d][%d];\n",
             (mpg->max_type+1),
             (mpg->max_type+1));
@@ -231,41 +232,41 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
           // nb: type 0 is not defined
           for (int p=1; p<(mpg->max_type+1); p++) {
             for (int q=1; q<(mpg->max_type+1); q++) {
-              printf("Yeff[%d][%d] = %f;\n", p,q,mpg->Yeff[p][q]);
-              printf("Geff[%d][%d] = %f;\n", p,q,mpg->Geff[p][q]);
-              printf("betaeff[%d][%d] = %f;\n", p,q,mpg->betaeff[p][q]);
-              printf("coeffFrict[%d][%d] = %f;\n", p,q,mpg->coeffFrict[p][q]);
+              printf("Yeff[%d][%d] = %.16f;\n", p,q,mpg->Yeff[p][q]);
+              printf("Geff[%d][%d] = %.16f;\n", p,q,mpg->Geff[p][q]);
+              printf("betaeff[%d][%d] = %.16f;\n", p,q,mpg->betaeff[p][q]);
+              printf("coeffFrict[%d][%d] = %.16f;\n", p,q,mpg->coeffFrict[p][q]);
             }
           }
-          printf("float nktv2p = %f;\n", force->nktv2p);
+          printf("float nktv2p = %.16f;\n", force->nktv2p);
           printf("int typei = %d;\nint typej = %d;\n", type[i], type[j]);
           printf("int max_type = %d;\n", (mpg->max_type+1));
         }
-        fprintf(ofile, "%f, %f, %f, %f, %f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, %.16f, %.16f, %.16f, %.16f, ",
           x[i][0], x[i][1], x[i][2],
           x[j][0], x[j][1], x[j][2]
         );
-        fprintf(ofile, "%f, %f, %f, %f, %f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, %.16f, %.16f, %.16f, %.16f, ",
           v[i][0], v[i][1], v[i][2],
           v[j][0], v[j][1], v[j][2]
         );
-        fprintf(ofile, "%f, %f, %f, %f, %f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, %.16f, %.16f, %.16f, %.16f, ",
           omega[i][0], omega[i][1], omega[i][2],
           omega[j][0], omega[j][1], omega[j][2]
         );
-        fprintf(ofile, "%f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, ",
           radius[i], radius[j]);
-        fprintf(ofile, "%f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, ",
           rmass[i], rmass[j]);
-        //fprintf(ofile, "%f, %f, ",
+        //fprintf(ofile, "%.16f, %.16f, ",
         //  mass[type[i]], mass[type[j]]);
 
         double *shear = &allshear[3*jj];
-        fprintf(ofile, "%f, %f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, %.16f, ",
           shear[0], shear[1], shear[2]);
-        fprintf(ofile, "%f, %f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, %.16f, ",
           torque[i][0], torque[i][1], torque[i][2]);
-        fprintf(ofile, "%f, %f, %f, ",
+        fprintf(ofile, "%.16f, %.16f, %.16f, ",
           f[i][0], f[i][1], f[i][2]);
 #endif
 
@@ -398,11 +399,11 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 	torque[i][2] -= radi*tor3;
 
 #ifdef EMIT_PAIRWISE
-  fprintf(ofile, "%f, %f, %f, ",
+  fprintf(ofile, "%.16f, %.16f, %.16f, ",
     shear[0], shear[1], shear[2]);
-  fprintf(ofile, "%f, %f, %f, ",
+  fprintf(ofile, "%.16f, %.16f, %.16f, ",
     torque[i][0], torque[i][1], torque[i][2]);
-  fprintf(ofile, "%f, %f, %f\n",
+  fprintf(ofile, "%.16f, %.16f, %.16f\n",
     f[i][0], f[i][1], f[i][2]);
 #endif
 
