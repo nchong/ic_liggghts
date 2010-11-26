@@ -45,7 +45,7 @@ int main() {
 
   struct hashmap *d_hm = c_to_device_hashmap(hm);
   memset(hm->map, 0, sizeof(struct entry) * hm->size);
-  destroy_hashmap(hm);
+  free_hashmap(hm);
 
   //pre-amble
   cudaError_t err = cudaGetLastError();
@@ -70,7 +70,9 @@ int main() {
 
   printf("CPU Hashmap(1)\n");
   hm = device_to_c_hashmap(d_hm);
+  free_device_hashmap(d_hm);
   print_hashmap(hm);
+  free_hashmap(hm);
 
   return 0;
 }
