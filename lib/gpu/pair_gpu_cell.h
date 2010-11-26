@@ -36,6 +36,18 @@ static int ncellx, ncelly, ncellz;
 static float *energy, *d_energy;
 static float3 *d_force, *f_temp, *v_temp, *d_virial;
 
+static double *d_v;
+static double *d_omega;
+static double *d_radius;
+static double *d_rmass;
+static double *d_Yeff;
+static double *d_Geff;
+static double *d_betaeff;
+static double *d_coeffFrict;
+
+static double *d_shear;
+static double *d_torque;
+static double *d_f;
 
 typedef struct {
   float3 *pos;
