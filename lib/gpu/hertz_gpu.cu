@@ -5,7 +5,7 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under
+   certain rights in this software.  This software is distributed under 
    the GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
@@ -27,6 +27,7 @@
 #include "lj_gpu_memory.cu"
 #include "hertz_gpu_kernel.h"
 
+#include "cuPrintf.cu"
 #include "hashmap.cu"
 
 // ---------------------------------------------------------------------------
@@ -40,7 +41,7 @@ EXTERN void hertz_gpu_name(const int id, const int max_nbors, char * name) {
 // Allocate memory on host and device and copy constants to device
 // ---------------------------------------------------------------------------
 EXTERN bool hertz_gpu_init(
-  double *boxlo, double *boxhi,
+  double *boxlo, double *boxhi, 
 	double cell_size, double skin)
 {
 
@@ -50,12 +51,12 @@ EXTERN bool hertz_gpu_init(
 
   printf("> hertz_gpu_init\n");
   printf("> cell_size = %f\n", cell_size);
-  printf("> boxhi = {%f, %f, %f}; boxlo = {%f, %f, %f}\n",
+  printf("> boxhi = {%f, %f, %f}; boxlo = {%f, %f, %f}\n", 
     boxhi[0], boxhi[1], boxhi[2],
     boxlo[0], boxlo[1], boxlo[2]);
   printf("> ncellx = %d; ncelly = %d; ncellz = %d;\n",
     ncellx, ncelly, ncellz);
-
+   
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
 
   return true;
@@ -89,9 +90,9 @@ EXTERN struct hashmap **create_shearmap(
   for (int ii=0; ii<inum; ii++) {
     int i = ilist[ii];
     int jnum = numneigh[i];
-    assert(jnum < 16);
+    assert(jnum < 32);
 
-    struct hashmap *hm = create_hashmap(16);
+    struct hashmap *hm = create_hashmap(32);
     for (int jj = 0; jj<jnum; jj++) {
       int j = firstneigh[i][jj];
 
@@ -105,7 +106,7 @@ EXTERN struct hashmap **create_shearmap(
   return shearmap;
 }
 
-struct hashmap *c_to_device_shearmap(struct hashmap **shearmap, int inum) {
+struct hashmap *c_to_device_shearmap(struct hashmap **shearmap, int inum) { 
   struct hashmap *d_shearmap;
   ASSERT_NO_CUDA_ERROR(
     cudaMalloc((void **)&d_shearmap, sizeof(struct hashmap) * inum));
@@ -135,12 +136,14 @@ EXTERN double hertz_gpu_cell(
   double **host_coeffFrict,
   double nktv2p,
 
-  //inouts
+  //inouts 
   struct hashmap**host_shear, double **host_torque, double **host_force)
 {
   static int blockSize = BLOCK_1D;
   static int ncell = ncellx*ncelly*ncellz;
 
+  printf("> inum = %d\n", inum);
+  printf("> nall = %d\n", nall);
   // -----------------------------------------------------------
   // Device variables
   // -----------------------------------------------------------
@@ -210,7 +213,7 @@ EXTERN double hertz_gpu_cell(
   cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_rmass, host_rmass, SIZE_1D, cudaMemcpyHostToDevice);
 
-  build_cell_list(host_x[0], host_type, cell_list_gpu,
+  build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
 
   struct hashmap *d_shearmap = c_to_device_shearmap(host_shear, inum);
@@ -223,6 +226,14 @@ EXTERN double hertz_gpu_cell(
 
   const int BX=blockSize;
   dim3 GX(ncellx, ncelly*ncellz);
+
+#ifdef VERBOSE
+  printf("ncellx=%d ncelly=%d ncellz=%d\n", ncellx, ncelly, ncellz);
+  printf("BX=%d\n", BX);
+  printf("GX=(%d,%d)\n", ncellx, ncelly*ncellz);
+  cudaPrintfInit(0x1<<30);
+#endif
+
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
     cell_list_gpu.pos,
     cell_list_gpu.idx,
@@ -234,6 +245,14 @@ EXTERN double hertz_gpu_cell(
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );
 
+#ifdef VERBOSE
+  //FILE *ofile = fopen("kernel_list.txt", "w");
+  //cudaPrintfDisplay(ofile, true);
+  cudaPrintfDisplay(stdout, true);
+  cudaPrintfEnd();
+#endif
+
+  cudaThreadSynchronize();
   err = cudaGetLastError();
   if (err != cudaSuccess) {
     printf("Post-kernel error: %s.\n", cudaGetErrorString(err));

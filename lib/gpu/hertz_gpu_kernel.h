@@ -20,6 +20,7 @@
 #ifndef HERTZ_GPU_KERNEL
 #define HERTZ_GPU_KERNEL
 
+#include "cuPrintf.cu"
 #include "hashmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
@@ -255,21 +256,26 @@ __global__ void kernel_hertz_cell(
       double *shear;
       double *torquei; double *force;
 
+      //temporary
+      double shear_dummy[3];
+      shear = &shear_dummy[0];
+      //temporary
+
       xi[0] = posSh[i            ];
       xi[1] = posSh[i+  blockSize];
       xi[2] = posSh[i+2*blockSize];
       typei = typeSh[i];
       //load from global memory (TODO: shift to shared)
-      vi[0] = v[cell_idx[i]];
-      vi[1] = v[cell_idx[i]+1];
-      vi[2] = v[cell_idx[i]+2];
-      omegai[0] = omega[cell_idx[i]];
-      omegai[1] = omega[cell_idx[i]+1];
-      omegai[2] = omega[cell_idx[i]+2];
-      radi = radius[cell_idx[i]];
-      rmassi = rmass[cell_idx[i]];
-      force = &f[cell_idx[i]];
-      torquei = &torque[cell_idx[i]];
+      vi[0] = v[(answer_pos*3)];
+      vi[1] = v[(answer_pos*3)+1];
+      vi[2] = v[(answer_pos*3)+2];
+      omegai[0] = omega[(answer_pos*3)];
+      omegai[1] = omega[(answer_pos*3)+1];
+      omegai[2] = omega[(answer_pos*3)+2];
+      radi = radius[answer_pos];
+      rmassi = rmass[answer_pos];
+      force = &f[answer_pos*3];
+      torquei = &torque[answer_pos*3];
 
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {
@@ -278,19 +284,22 @@ __global__ void kernel_hertz_cell(
         xj[1] = posSh[j+  blockSize];
         xj[2] = posSh[j+2*blockSize];
         typej = typeSh[j];
-        vj[0] = v[cell_idx[j]];
-        vj[1] = v[cell_idx[j]+1];
-        vj[2] = v[cell_idx[j]+2];
-        omegaj[0] = omega[cell_idx[j]];
-        omegaj[1] = omega[cell_idx[j]+1];
-        omegaj[2] = omega[cell_idx[j]+2];
-        radj = radius[cell_idx[j]];
-        rmassj = rmass[cell_idx[j]];
-        struct entry *lookup = cuda_retrieve_hashmap(&shearmap[i], j);
-        if (lookup == NULL) {
-          //complain bitterly and refuse to continue
-        }
-        shear = lookup->shear;
+
+        int idxj = cell_idx[cid*blockSize+j]; //within same cell as i
+        vj[0] = v[(idxj*3)];
+        vj[1] = v[(idxj*3)+1];
+        vj[2] = v[(idxj*3)+2];
+        omegaj[0] = omega[(idxj*3)];
+        omegaj[1] = omega[(idxj*3)+1];
+        omegaj[2] = omega[(idxj*3)+2];
+        radj = radius[idxj];
+        rmassj = rmass[idxj];
+        struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
+        //if (lookup == NULL) {
+        //  //complain bitterly and refuse to continue
+        //} else {
+        //  shear = lookup->shear;
+        //}
 
         pair_interaction(
             xi, xj, vi, vj, omegai, omegaj,
@@ -326,19 +335,22 @@ __global__ void kernel_hertz_cell(
                 xj[1] = posSh[j+  blockSize];
                 xj[2] = posSh[j+2*blockSize];
                 typej = typeSh[j];
-                vj[0] = v[cell_idx[j]];
-                vj[1] = v[cell_idx[j]+1];
-                vj[2] = v[cell_idx[j]+2];
-                omegaj[0] = omega[cell_idx[j]];
-                omegaj[1] = omega[cell_idx[j]+1];
-                omegaj[2] = omega[cell_idx[j]+2];
-                radj = radius[cell_idx[j]];
-                rmassj = rmass[cell_idx[j]];
-                struct entry *lookup = cuda_retrieve_hashmap(&shearmap[i], j);
-                if (lookup == NULL) {
-                  //complain bitterly and refuse to continue
-                }
-                shear = lookup->shear;
+
+                int idxj = cell_idx[cid_nbor*blockSize+j];
+                vj[0] = v[(idxj*3)];
+                vj[1] = v[(idxj*3)+1];
+                vj[2] = v[(idxj*3)+2];
+                omegaj[0] = omega[(idxj*3)];
+                omegaj[1] = omega[(idxj*3)+1];
+                omegaj[2] = omega[(idxj*3)+2];
+                radj = radius[idxj];
+                rmassj = rmass[idxj];
+                struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
+                //if (lookup == NULL) {
+                //  //complain bitterly and refuse to continue
+                //} else {
+                //  shear = lookup->shear;
+                //}
 
                 pair_interaction(
                     xi, xj, vi, vj, omegai, omegaj,

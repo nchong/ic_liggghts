@@ -11,6 +11,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
+#include "assert.h"
 #include "math.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -27,6 +28,7 @@
 #include "memory.h"
 #include "error.h"
 #include "universe.h"
+#include "mech_param_gran.h"
 
 #include <string>
 
@@ -37,7 +39,33 @@
 
 bool hertz_gpu_init(double *boxlo, double *boxhi, double cell_len, double skin);
 void hertz_gpu_clear();
-double hertz_gpu_cell();
+struct hashmap **create_shearmap(
+  int inum, /*list->inum*/
+  int *ilist, /*list->ilist*/
+  int *numneigh, /*list->numneigh*/
+  int **firstneigh, /*list->firstneigh*/
+  int **firsttouch, /*listgranhistory->firstneigh*/
+  double **firstshear /*listgranhistory->firstdouble*/);
+double hertz_gpu_cell(
+  const bool eflag, const bool vflag,
+  const int inum, const int nall, const int ago,
+
+  //inputs
+  double **host_x, double **host_v, double **host_omega,
+  double *host_radius, double *host_rmass,
+  int *host_type,
+  double dt,
+
+  //stiffness parameters
+  int num_atom_types,
+  double **host_Yeff,
+  double **host_Geff,
+  double **host_betaeff,
+  double **host_coeffFrict,
+  double nktv2p,
+
+  //inouts 
+  struct hashmap **host_shear, double **host_torque, double **host_force);
 void hertz_gpu_name(const int gpu_id, const int max_nbors, char * name);
 void hertz_gpu_time();
 double hertz_gpu_bytes();
@@ -111,3 +139,81 @@ void PairGranHertzHistoryGPU::init_style()
   }
 }
 
+void PairGranHertzHistoryGPU::emit_particle_details(int i) {
+  printf("particle %d\n", i);
+  printf("x\n%.16f\n%.16f\n%.16f\n",
+    atom->x[i][0], atom->x[i][1], atom->x[i][2]);
+  printf("v\n%.16f\n%.16f\n%.16f\n",
+    atom->v[i][0], atom->v[i][1], atom->v[i][2]);
+  printf("omega\n%.16f\n%.16f\n%.16f\n",
+    atom->omega[i][0], atom->omega[i][1], atom->omega[i][2]);
+  printf("radius\n%.16f\n", atom->radius[i]);
+  printf("rmass\n%.16f\n", atom->rmass[i]);
+
+  printf("torque\n%.16f\n%.16f\n%.16f\n",
+    atom->torque[i][0], atom->torque[i][1], atom->torque[i][2]);
+  printf("force\n%.16f\n%.16f\n%.16f\n",
+    atom->f[i][0], atom->f[i][1], atom->f[i][2]);
+}
+
+void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
+  int inum = list->inum;
+  static int step = -1; step++;
+
+//#define CPURUN
+
+#ifdef CPURUN
+  if (inum == 0 || step < 28) {
+#else
+  if (inum == 0 || step < 27) {
+#endif
+    if (step == 27) {
+      printf("Pre-kernel\n");
+      emit_particle_details(107);
+    }
+    PairGranHertzHistory::compute(eflag, vflag);
+    if (step == 27) {
+      printf("Post-kernel\n");
+      emit_particle_details(107);
+      exit(0);
+    }
+  } else {
+    printf("Starting test run for step %d!\n", step);
+    //create copy of shear, torque and force
+    printf("Pre-kernel\n");
+    //emit_particle_details(107);
+
+    double **gpu_force = atom->f;
+    double **gpu_torque = atom->torque;
+    struct hashmap **shearmap = create_shearmap(
+        inum, list->ilist, list->numneigh, list->firstneigh,
+        listgranhistory->firstneigh, listgranhistory->firstdouble);
+
+    //call gpu and store dummy results (shear, torque and shear)
+    inum = atom->nlocal;
+    int nall = atom->nlocal + atom->nghost;
+    int num_atom_types =  mpg->max_type+1;
+    hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
+      atom->x, atom->v, atom->omega,
+      atom->radius, atom->rmass,
+      atom->type,
+      dt,
+
+      num_atom_types,
+      mpg->Yeff,
+      mpg->Geff,
+      mpg->betaeff,
+      mpg->coeffFrict,
+      force->nktv2p,
+
+      shearmap,
+      atom->torque,
+      atom->f);
+
+    printf("Post-kernel\n");
+    //emit_particle_details(107);
+
+    printf("The end, for now!\n");
+    exit(0);
+  }
+}

@@ -28,10 +28,11 @@ class PairGranHertzHistoryGPU : public PairGranHertzHistory {
  public:
   PairGranHertzHistoryGPU(LAMMPS *lmp);
   ~PairGranHertzHistoryGPU();
-  //void compute(int, int);
+  void compute(int, int);
   //void settings(int, char **);
   void init_style();
   //double memory_usage();
+  void emit_particle_details(int);
 
   enum { ONE_NODE, ONE_GPU, MULTI_GPU };
 
