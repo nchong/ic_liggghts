@@ -103,6 +103,24 @@ EXTERN struct hashmap **create_shearmap(
     shearmap[i] = hm;
   }
 
+  //paranoid
+  for (int ii=0; ii<inum; ii++) {
+    int i = ilist[ii];
+    int jnum = numneigh[i];
+
+    struct hashmap *hm = create_hashmap(32);
+    for (int jj = 0; jj<jnum; jj++) {
+      int j = firstneigh[i][jj];
+      double *shear = &firstshear[i][3*jj];
+
+      struct entry *result = retrieve_hashmap(shearmap[i], j);
+      assert(result);
+      assert(result->shear[0] == shear[0]);
+      assert(result->shear[1] == shear[1]);
+      assert(result->shear[2] == shear[2]);
+    }
+  }
+
   return shearmap;
 }
 
@@ -226,6 +244,8 @@ EXTERN double hertz_gpu_cell(
 
   const int BX=blockSize;
   dim3 GX(ncellx, ncelly*ncellz);
+
+#define VERBOSE
 
 #ifdef VERBOSE
   printf("ncellx=%d ncelly=%d ncellz=%d\n", ncellx, ncelly, ncellz);

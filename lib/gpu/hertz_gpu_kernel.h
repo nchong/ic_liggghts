@@ -257,7 +257,7 @@ __global__ void kernel_hertz_cell(
       double *torquei; double *force;
 
       //temporary
-      double shear_dummy[3];
+      double shear_dummy[3] = {0.0, 0.0, 0.0};
       shear = &shear_dummy[0];
       //temporary
 
@@ -295,11 +295,24 @@ __global__ void kernel_hertz_cell(
         radj = radius[idxj];
         rmassj = rmass[idxj];
         struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-        //if (lookup == NULL) {
-        //  //complain bitterly and refuse to continue
-        //} else {
-        //  shear = lookup->shear;
-        //}
+        if (lookup == NULL) { //miss
+          //(a) go onto next j; or
+          continue;
+          //(b) insert zero shear
+          //double zero_shear[3] = {0,0,0};
+          //lookup = cuda_insert_hashmap(&shearmap[answer_pos], idxj, zero_shear);
+          //if (lookup == NULL) {
+          //  cuPrintf("lookup failed map %d key %d\n", answer_pos, idxj);
+          //  continue;
+          //}
+        }
+
+        //todo why doesn't the following work?
+        //shear = &(lookup->shear);
+        //instead, have to copy and copy-back
+        shear[0] = lookup->shear[0];
+        shear[1] = lookup->shear[1];
+        shear[2] = lookup->shear[2];
 
         pair_interaction(
             xi, xj, vi, vj, omegai, omegaj,
@@ -307,6 +320,11 @@ __global__ void kernel_hertz_cell(
             //passed through (constant)
             dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
             shear, torquei, force);
+
+        //todo
+        lookup->shear[0] = shear[0];
+        lookup->shear[1] = shear[1];
+        lookup->shear[2] = shear[2];
       }
       __syncthreads();
 
@@ -346,11 +364,13 @@ __global__ void kernel_hertz_cell(
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
                 struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-                //if (lookup == NULL) {
-                //  //complain bitterly and refuse to continue
-                //} else {
-                //  shear = lookup->shear;
-                //}
+                if (lookup == NULL) { //miss
+                  continue;
+                }
+
+                shear[0] = lookup->shear[0];
+                shear[1] = lookup->shear[1];
+                shear[2] = lookup->shear[2];
 
                 pair_interaction(
                     xi, xj, vi, vj, omegai, omegaj,
@@ -358,6 +378,10 @@ __global__ void kernel_hertz_cell(
                     //passed through (constant)
                     dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
                     shear, torquei, force);
+
+                lookup->shear[0] = shear[0];
+                lookup->shear[1] = shear[1];
+                lookup->shear[2] = shear[2];
               }
             }
           }

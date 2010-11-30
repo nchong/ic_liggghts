@@ -139,16 +139,18 @@ void PairGranHertzHistoryGPU::init_style()
   }
 }
 
-void PairGranHertzHistoryGPU::emit_particle_details(int i) {
-  printf("particle %d\n", i);
-  printf("x\n%.16f\n%.16f\n%.16f\n",
-    atom->x[i][0], atom->x[i][1], atom->x[i][2]);
-  printf("v\n%.16f\n%.16f\n%.16f\n",
-    atom->v[i][0], atom->v[i][1], atom->v[i][2]);
-  printf("omega\n%.16f\n%.16f\n%.16f\n",
-    atom->omega[i][0], atom->omega[i][1], atom->omega[i][2]);
-  printf("radius\n%.16f\n", atom->radius[i]);
-  printf("rmass\n%.16f\n", atom->rmass[i]);
+void PairGranHertzHistoryGPU::emit_particle_details(int i, bool do_header=true) {
+  if (do_header) {
+    printf("particle %d\n", i);
+    printf("x\n%.16f\n%.16f\n%.16f\n",
+      atom->x[i][0], atom->x[i][1], atom->x[i][2]);
+    printf("v\n%.16f\n%.16f\n%.16f\n",
+      atom->v[i][0], atom->v[i][1], atom->v[i][2]);
+    printf("omega\n%.16f\n%.16f\n%.16f\n",
+      atom->omega[i][0], atom->omega[i][1], atom->omega[i][2]);
+    printf("radius\n%.16f\n", atom->radius[i]);
+    printf("rmass\n%.16f\n", atom->rmass[i]);
+  }
 
   printf("torque\n%.16f\n%.16f\n%.16f\n",
     atom->torque[i][0], atom->torque[i][1], atom->torque[i][2]);
@@ -174,14 +176,14 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
     PairGranHertzHistory::compute(eflag, vflag);
     if (step == 27) {
       printf("Post-kernel\n");
-      emit_particle_details(107);
+      emit_particle_details(107, false);
       exit(0);
     }
   } else {
     printf("Starting test run for step %d!\n", step);
     //create copy of shear, torque and force
     printf("Pre-kernel\n");
-    //emit_particle_details(107);
+    emit_particle_details(107);
 
     double **gpu_force = atom->f;
     double **gpu_torque = atom->torque;
@@ -211,7 +213,7 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       atom->f);
 
     printf("Post-kernel\n");
-    //emit_particle_details(107);
+    emit_particle_details(107, false);
 
     printf("The end, for now!\n");
     exit(0);

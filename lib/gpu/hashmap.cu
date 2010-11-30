@@ -84,7 +84,7 @@ struct entry *insert_hashmap(struct hashmap *hm, int key, double shear[3]) {
     while (hm->map[probe].valid && probe != hash) {
       probe = (probe + 1) % hm->size;
     }
-    
+
     if (probe == hash) {
       printf("error: hashmap is full!\n"); //could resize here
       exit(1);
@@ -128,7 +128,7 @@ void print_hashmap(struct hashmap *hm) {
   for (int i=0; i<hm->size; i++) {
     printf("%d: ", i);
     if (hm->map[i].valid) {
-      printf("%d |-> {%f, %f, %f}\n", 
+      printf("%d |-> {%f, %f, %f}\n",
         hm->map[i].key,
         hm->map[i].shear[0],
         hm->map[i].shear[1],
@@ -213,6 +213,36 @@ __device__ struct entry *cuda_retrieve_hashmap(struct hashmap *hm, int key) {
   return result;
 }
 
-// no insertion on device
+/*
+ * Insert into a *device* hashmap within a gpu kernel
+ *
+ * struct entry *e = cuda_insert_hashmap(<hm>, <key>, <shear>);
+ * if (e) { //pass } else { //fail }
+ */
+__device__ struct entry *cuda_insert_hashmap(struct hashmap *hm, int key, double shear[3]) {
+  int hash = key % (hm->size);
+
+  //linear probe on collision
+  if (hm->map[hash].valid) {
+    int probe = (hash + 1) % hm->size;
+    while (hm->map[probe].valid && probe != hash) {
+      probe = (probe + 1) % hm->size;
+    }
+
+    if (probe == hash) {
+      return NULL;
+    } else {
+      hash = probe;
+    }
+  }
+
+  //straightforward insertion
+  hm->map[hash].valid    = true;
+  hm->map[hash].key      = key;
+  hm->map[hash].shear[0] = shear[0];
+  hm->map[hash].shear[1] = shear[1];
+  hm->map[hash].shear[2] = shear[2];
+  return &hm->map[hash];
+}
 
 #endif

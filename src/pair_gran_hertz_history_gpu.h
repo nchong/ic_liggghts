@@ -32,7 +32,7 @@ class PairGranHertzHistoryGPU : public PairGranHertzHistory {
   //void settings(int, char **);
   void init_style();
   //double memory_usage();
-  void emit_particle_details(int);
+  void emit_particle_details(int,bool);
 
   enum { ONE_NODE, ONE_GPU, MULTI_GPU };
 
