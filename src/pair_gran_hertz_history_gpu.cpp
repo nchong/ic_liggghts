@@ -183,18 +183,40 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
     printf("Starting test run for step %d!\n", step);
     //create copy of shear, torque and force
     printf("Pre-kernel\n");
-    emit_particle_details(107);
 
-    double **gpu_force = atom->f;
-    double **gpu_torque = atom->torque;
+    inum = atom->nlocal;
+    int nall = atom->nlocal + atom->nghost;
+    int num_atom_types =  mpg->max_type+1;
+
+    //inouts: shear, torque and force
+    //create deep copies so we can compare results with CPU simulation
     struct hashmap **shearmap = create_shearmap(
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
+    size_t table_size = nall * 3 * sizeof(double);
+    double **gpu_torque = (double **)malloc(table_size);
+    memcpy(gpu_torque, atom->torque, table_size);
+    double **gpu_force = (double **)malloc(table_size);
+    memcpy(gpu_force, atom->f, table_size);
+
+    //paranoid
+    for (int i=0; i<nall; i++) {
+      for (int j=0; j<3; j++) {
+        if (gpu_torque[i][j] != atom->torque[i][j]) {
+          printf("torque[%d][%d] mismatch: %f / %f\n", 
+              i, j, gpu_torque[i][j], atom->torque[i][j]);
+          exit(1);
+        }
+        if (gpu_force[i][j] != atom->f[i][j]) {
+          printf("force[%d][%d] mismatch: %f / %f\n", 
+              i, j, gpu_force[i][j], atom->f[i][j]);
+          exit(1);
+        }
+      }
+    }
+
     //call gpu and store dummy results (shear, torque and shear)
-    inum = atom->nlocal;
-    int nall = atom->nlocal + atom->nghost;
-    int num_atom_types =  mpg->max_type+1;
     hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
       atom->x, atom->v, atom->omega,
       atom->radius, atom->rmass,
@@ -209,11 +231,27 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       force->nktv2p,
 
       shearmap,
-      atom->torque,
-      atom->f);
+      gpu_torque,
+      gpu_force);
+
+    //call cpu golden reference
+    PairGranHertzHistory::compute(eflag, vflag);
 
     printf("Post-kernel\n");
-    emit_particle_details(107, false);
+    FILE *ofile = fopen("compare.csv", "w");
+    fprintf(ofile, "Step %d\n", step);
+    fprintf(ofile, "Force comparison\n");
+    for (int i=0; i<nall; i++) {
+      for (int j=0; j<3; j++) {
+        fprintf(ofile, "f[%d][%d], %.16f, %.16f\n", i,j,atom->f[i][j],gpu_force[i][j]);
+      }
+    }
+    fprintf(ofile, "Torque comparison\n");
+    for (int i=0; i<nall; i++) {
+      for (int j=0; j<3; j++) {
+        fprintf(ofile, "torque[%d][%d], %.16f, %.16f\n", i,j,atom->torque[i][j],gpu_torque[i][j]);
+      }
+    }
 
     printf("The end, for now!\n");
     exit(0);

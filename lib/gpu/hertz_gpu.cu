@@ -124,6 +124,32 @@ EXTERN struct hashmap **create_shearmap(
   return shearmap;
 }
 
+EXTERN void update_from_shearmap(
+  struct hashmap **shearmap,
+  int inum,
+  int *ilist,
+  int *numneigh,
+  int **firstneigh,
+  int **firsttouch,
+  double **firstshear) {
+
+  for (int ii=0; ii<inum; ii++) {
+    int i = ilist[ii];
+    int jnum = numneigh[i];
+
+    for (int jj = 0; jj<jnum; jj++) {
+      int j = firstneigh[i][jj];
+
+      struct entry *result = retrieve_hashmap(shearmap[i], j);
+      double *shear = &firstshear[i][3*jj];
+      shear[0] = result->shear[0];
+      shear[1] = result->shear[1];
+      shear[2] = result->shear[2];
+      //TODO: necessary to uncheck firsttouch[i][jj]?
+    }
+  }
+}
+
 struct hashmap *c_to_device_shearmap(struct hashmap **shearmap, int inum) { 
   struct hashmap *d_shearmap;
   ASSERT_NO_CUDA_ERROR(
@@ -134,6 +160,15 @@ struct hashmap *c_to_device_shearmap(struct hashmap **shearmap, int inum) {
     ASSERT_NO_CUDA_ERROR(cudaMemcpy(&d_shearmap[i], d_hm, sizeof(struct hashmap), cudaMemcpyDeviceToDevice));
   }
   return d_shearmap;
+}
+
+struct hashmap **device_to_c_shearmap(struct hashmap *d_shearmap, int inum) {
+  struct hashmap **shearmap = 
+    (struct hashmap **)malloc(sizeof(struct hashmap) * inum);
+  for (int i=0; i<inum; i++) {
+    shearmap[i] = device_to_c_hashmap(&d_shearmap[i]);
+  }
+  return shearmap;
 }
 
 EXTERN double hertz_gpu_cell(
@@ -280,7 +315,7 @@ EXTERN double hertz_gpu_cell(
   }
 
   //copy back force calculations (shear, torque, force)
-//cudaMemcpy(h_shear, d_shear, SIZE_2D, cudaMemcpyDeviceToHost);
+  host_shear = device_to_c_shearmap(d_shearmap ,inum);
   cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost);
   cudaMemcpy(h_f, d_f, SIZE_2D, cudaMemcpyDeviceToHost);
   for (int i=0; i<nall; i++) {
