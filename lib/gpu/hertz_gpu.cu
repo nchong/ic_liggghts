@@ -220,7 +220,7 @@ EXTERN double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap***host_shear, double **host_torque, double **host_force)
+  struct hashmap**&host_shear, double **host_torque, double **host_force)
 {
   static int blockSize = BLOCK_1D;
   static int ncell = ncellx*ncelly*ncellz;
@@ -301,7 +301,7 @@ EXTERN double hertz_gpu_cell(
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
 
-  struct hashmap *d_shearmap = c_to_device_shearmap(*host_shear, inum);
+  struct hashmap *d_shearmap = c_to_device_shearmap(host_shear, inum);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -343,7 +343,7 @@ EXTERN double hertz_gpu_cell(
   }
 
   //copy back force calculations (shear, torque, force)
-  *host_shear = device_to_c_shearmap(d_shearmap ,inum);
+  host_shear = device_to_c_shearmap(d_shearmap ,inum);
   cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost);
   cudaMemcpy(h_f, d_f, SIZE_2D, cudaMemcpyDeviceToHost);
   for (int i=0; i<nall; i++) {

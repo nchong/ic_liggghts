@@ -74,7 +74,7 @@ double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap ***host_shear, double **host_torque, double **host_force);
+  struct hashmap **&host_shear, double **host_torque, double **host_force);
 void hertz_gpu_name(const int gpu_id, const int max_nbors, char * name);
 void hertz_gpu_time();
 double hertz_gpu_bytes();
@@ -222,7 +222,7 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       mpg->coeffFrict,
       force->nktv2p,
 
-      &shearmap,
+      shearmap,
       gpu_torque,
       gpu_force);
 
