@@ -124,6 +124,36 @@ EXTERN struct hashmap **create_shearmap(
   return shearmap;
 }
 
+EXTERN void compare_shearmap(
+  FILE *ofile,
+  struct hashmap **shearmap,
+  int inum,
+  int *ilist,
+  int *numneigh,
+  int **firstneigh,
+  int **firsttouch,
+  double **firstshear) {
+
+  struct entry *result = retrieve_hashmap(shearmap[107], 108);
+  for (int ii=0; ii<inum; ii++) {
+    int i = ilist[ii];
+    int jnum = numneigh[i];
+
+    for (int jj = 0; jj<jnum; jj++) {
+      int j = firstneigh[i][jj];
+
+      struct entry *result = retrieve_hashmap(shearmap[i], j);
+      if (result == NULL) {
+        fprintf(ofile, "shear[%d][%d] mismatch!\n", i,j);
+      }
+      double *shear = &firstshear[i][3*jj];
+      for (int k=0; k<3; k++) {
+        fprintf(ofile, "shear[%d][%d][%d], %.16f, %.16f\n", i,j,k,shear[k], result->shear[k]);
+      }
+    }
+  }
+}
+
 EXTERN void update_from_shearmap(
   struct hashmap **shearmap,
   int inum,
@@ -190,13 +220,15 @@ EXTERN double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap**host_shear, double **host_torque, double **host_force)
+  struct hashmap***host_shear, double **host_torque, double **host_force)
 {
   static int blockSize = BLOCK_1D;
   static int ncell = ncellx*ncelly*ncellz;
 
+#ifdef VERBOSE
   printf("> inum = %d\n", inum);
   printf("> nall = %d\n", nall);
+#endif
   // -----------------------------------------------------------
   // Device variables
   // -----------------------------------------------------------
@@ -269,7 +301,7 @@ EXTERN double hertz_gpu_cell(
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
 
-  struct hashmap *d_shearmap = c_to_device_shearmap(host_shear, inum);
+  struct hashmap *d_shearmap = c_to_device_shearmap(*host_shear, inum);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -280,12 +312,8 @@ EXTERN double hertz_gpu_cell(
   const int BX=blockSize;
   dim3 GX(ncellx, ncelly*ncellz);
 
-#define VERBOSE
-
 #ifdef VERBOSE
-  printf("ncellx=%d ncelly=%d ncellz=%d\n", ncellx, ncelly, ncellz);
-  printf("BX=%d\n", BX);
-  printf("GX=(%d,%d)\n", ncellx, ncelly*ncellz);
+  printf("kernel<<<BX=%d, GX=(%d,%d)>>>\n", BX, ncellx, ncelly*ncellz);
   cudaPrintfInit(0x1<<30);
 #endif
 
@@ -301,9 +329,9 @@ EXTERN double hertz_gpu_cell(
   );
 
 #ifdef VERBOSE
+  cudaPrintfDisplay(stdout, true);
   //FILE *ofile = fopen("kernel_list.txt", "w");
   //cudaPrintfDisplay(ofile, true);
-  cudaPrintfDisplay(stdout, true);
   cudaPrintfEnd();
 #endif
 
@@ -315,7 +343,7 @@ EXTERN double hertz_gpu_cell(
   }
 
   //copy back force calculations (shear, torque, force)
-  host_shear = device_to_c_shearmap(d_shearmap ,inum);
+  *host_shear = device_to_c_shearmap(d_shearmap ,inum);
   cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost);
   cudaMemcpy(h_f, d_f, SIZE_2D, cudaMemcpyDeviceToHost);
   for (int i=0; i<nall; i++) {

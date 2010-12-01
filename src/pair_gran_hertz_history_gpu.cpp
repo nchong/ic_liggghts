@@ -46,6 +46,15 @@ struct hashmap **create_shearmap(
   int **firstneigh, /*list->firstneigh*/
   int **firsttouch, /*listgranhistory->firstneigh*/
   double **firstshear /*listgranhistory->firstdouble*/);
+void compare_shearmap(
+  FILE *ofile,
+  struct hashmap **shearmap,
+  int inum, /*list->inum*/
+  int *ilist, /*list->ilist*/
+  int *numneigh, /*list->numneigh*/
+  int **firstneigh, /*list->firstneigh*/
+  int **firsttouch, /*listgranhistory->firstneigh*/
+  double **firstshear /*listgranhistory->firstdouble*/);
 double hertz_gpu_cell(
   const bool eflag, const bool vflag,
   const int inum, const int nall, const int ago,
@@ -65,7 +74,7 @@ double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap **host_shear, double **host_torque, double **host_force);
+  struct hashmap ***host_shear, double **host_torque, double **host_force);
 void hertz_gpu_name(const int gpu_id, const int max_nbors, char * name);
 void hertz_gpu_time();
 double hertz_gpu_bytes();
@@ -162,27 +171,10 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
   int inum = list->inum;
   static int step = -1; step++;
 
-//#define CPURUN
-
-#ifdef CPURUN
-  if (inum == 0 || step < 28) {
-#else
   if (inum == 0 || step < 27) {
-#endif
-    if (step == 27) {
-      printf("Pre-kernel\n");
-      emit_particle_details(107);
-    }
     PairGranHertzHistory::compute(eflag, vflag);
-    if (step == 27) {
-      printf("Post-kernel\n");
-      emit_particle_details(107, false);
-      exit(0);
-    }
   } else {
-    printf("Starting test run for step %d!\n", step);
-    //create copy of shear, torque and force
-    printf("Pre-kernel\n");
+    printf("Test run for step %d!\n", step);
 
     inum = atom->nlocal;
     int nall = atom->nlocal + atom->nghost;
@@ -216,7 +208,7 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       }
     }
 
-    //call gpu and store dummy results (shear, torque and shear)
+    //call gpu into dummy results (shear, torque and shear)
     hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
       atom->x, atom->v, atom->omega,
       atom->radius, atom->rmass,
@@ -230,15 +222,15 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       mpg->coeffFrict,
       force->nktv2p,
 
-      shearmap,
+      &shearmap,
       gpu_torque,
       gpu_force);
 
     //call cpu golden reference
     PairGranHertzHistory::compute(eflag, vflag);
 
-    printf("Post-kernel\n");
-    FILE *ofile = fopen("compare.csv", "w");
+    //printf("Post-kernel\n");
+    FILE *ofile = fopen("compare.csv", "a");
     fprintf(ofile, "Step %d\n", step);
     fprintf(ofile, "Force comparison\n");
     for (int i=0; i<nall; i++) {
@@ -252,8 +244,19 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
         fprintf(ofile, "torque[%d][%d], %.16f, %.16f\n", i,j,atom->torque[i][j],gpu_torque[i][j]);
       }
     }
+    fprintf(ofile, "Shear comparison\n");
+    compare_shearmap(
+        ofile, shearmap,
+        inum, list->ilist, list->numneigh, list->firstneigh,
+        listgranhistory->firstneigh, listgranhistory->firstdouble);
 
-    printf("The end, for now!\n");
+    fflush(ofile);
+    fclose(ofile);
+
     exit(0);
+    if (step > 30) {
+      printf("The end, for now!\n");
+      exit(0);
+    }
   }
 }

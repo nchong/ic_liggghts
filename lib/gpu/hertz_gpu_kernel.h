@@ -295,16 +295,8 @@ __global__ void kernel_hertz_cell(
         radj = radius[idxj];
         rmassj = rmass[idxj];
         struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-        if (lookup == NULL) { //miss
-          //(a) go onto next j; or
+        if (lookup == NULL) { //on miss, so go onto next j
           continue;
-          //(b) insert zero shear
-          //double zero_shear[3] = {0,0,0};
-          //lookup = cuda_insert_hashmap(&shearmap[answer_pos], idxj, zero_shear);
-          //if (lookup == NULL) {
-          //  cuPrintf("lookup failed map %d key %d\n", answer_pos, idxj);
-          //  continue;
-          //}
         }
 
         //todo why doesn't the following work?
@@ -364,7 +356,7 @@ __global__ void kernel_hertz_cell(
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
                 struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-                if (lookup == NULL) { //miss
+                if (lookup == NULL) { //on miss, so go onto next j
                   continue;
                 }
 
