@@ -22,6 +22,7 @@ See the README file in the top-level LAMMPS directory.
    Contributing authors for original version: Leo Silbert (SNL), Gary Grest (SNL)
 ------------------------------------------------------------------------- */
 
+#define EMIT_DIAGNOSTICS //< Write to [diagnostics.txt]
 //#define EMIT_PAIRWISE //< Write to [pairwise_data.csv] for [play/hertz.cu]
 
 #include "math.h"
@@ -172,6 +173,36 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
 #ifdef EMIT_PAIRWISE
   static bool first_call = true;
   FILE *ofile = fopen("pairwise_data.csv", "a");
+#endif
+#ifdef EMIT_DIAGNOSTICS
+  FILE *hist_file = fopen("numneigh.txt", "a");
+  int num_contacts_hist[64];
+  memset(num_contacts_hist, 0, 64 * sizeof(int));
+
+  static int prev_num_contacts = -1;
+  int num_contacts = 0;
+  static int step = -1;
+  step++;
+  for (ii = 0; ii < inum; ii++) {
+    i = ilist[ii];
+    jnum = numneigh[i];
+    num_contacts += jnum;
+    num_contacts_hist[jnum]++;
+  }
+  fprintf(hist_file, "-----\n");
+  for (int i=0; i<64; i++) {
+    fprintf(hist_file, "%d, %d\n", i, num_contacts_hist[i]);
+  }
+  fflush(hist_file);
+  fclose(hist_file);
+
+  if (num_contacts != prev_num_contacts) {
+    prev_num_contacts = num_contacts;
+    FILE *num_contacts_file = fopen("numcontacts.txt", "a");
+    fprintf(num_contacts_file, "%d, %d\n", step, num_contacts);
+    fflush(num_contacts_file);
+    fclose(num_contacts_file);
+  }
 #endif
 
   for (ii = 0; ii < inum; ii++) {
@@ -423,6 +454,7 @@ void PairGranHookeHistory::compute(int eflag, int vflag)
   }
 
 #ifdef EMIT_PAIRWISE
+  fflush(ofile);
   fclose(ofile);
 #endif
 }

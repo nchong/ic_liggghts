@@ -167,11 +167,19 @@ void PairGranHertzHistoryGPU::emit_particle_details(int i, bool do_header=true) 
     atom->f[i][0], atom->f[i][1], atom->f[i][2]);
 }
 
+//make gpu datastructures persistent across compute() calls
+static hashmap **shearmap;
+static double **gpu_torque;
+static double **gpu_force;
+static int gpu_nall = 0;
+
 void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
   int inum = list->inum;
   static int step = -1; step++;
+  static bool first_gpu_step = true;
+  bool always_resync = false; //< always resync gpu datastructures with host
 
-  if (inum == 0 || step < 27) {
+  if (inum == 0 || step < 100) {
     PairGranHertzHistory::compute(eflag, vflag);
   } else {
     printf("Test run for step %d!\n", step);
@@ -182,15 +190,35 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
 
     //inouts: shear, torque and force
     //create deep copies so we can compare results with CPU simulation
-    struct hashmap **shearmap = create_shearmap(
+    shearmap = create_shearmap(
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
-    size_t table_size = nall * 3 * sizeof(double);
-    double **gpu_torque = (double **)malloc(table_size);
-    memcpy(gpu_torque, atom->torque, table_size);
-    double **gpu_force = (double **)malloc(table_size);
-    memcpy(gpu_force, atom->f, table_size);
+    size_t table_size = nall * sizeof(double *);
+    gpu_torque = (double **)malloc(table_size);
+    gpu_force = (double **)malloc(table_size);
+    for (int i=0; i<nall; i++) {
+      gpu_torque[i] = (double *)malloc(3 * sizeof(double));
+      gpu_force[i] = (double *)malloc(3 * sizeof(double));
+      for (int j=0; j<3; j++) {
+        gpu_torque[i][j] = atom->torque[i][j];
+        gpu_force[i][j] = atom->f[i][j];
+      }
+    }
+    for (int i=0; i<nall; i++) {
+      for (int j=0; j<3; j++) {
+        if (gpu_torque[i][j] != atom->torque[i][j]) {
+          printf("torque[%d][%d] mismatch: %f / %f\n", 
+              i, j, gpu_torque[i][j], atom->torque[i][j]);
+          exit(1);
+        }
+        if (gpu_force[i][j] != atom->f[i][j]) {
+          printf("force[%d][%d] mismatch: %f / %f\n", 
+              i, j, gpu_force[i][j], atom->f[i][j]);
+          exit(1);
+        }
+      }
+    }
 
     //paranoid
     for (int i=0; i<nall; i++) {
@@ -208,7 +236,7 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       }
     }
 
-    //call gpu into dummy results (shear, torque and shear)
+    //call gpu using host-level gpu datastructures
     hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
       atom->x, atom->v, atom->omega,
       atom->radius, atom->rmass,
@@ -226,7 +254,7 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       gpu_torque,
       gpu_force);
 
-    //call cpu golden reference
+    //call cpu golden reference on "real" datastructures
     PairGranHertzHistory::compute(eflag, vflag);
 
     //printf("Post-kernel\n");
@@ -254,9 +282,5 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
     fclose(ofile);
 
     exit(0);
-    if (step > 30) {
-      printf("The end, for now!\n");
-      exit(0);
-    }
   }
 }
