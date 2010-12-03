@@ -30,6 +30,8 @@
 #include "cuPrintf.cu"
 #include "hashmap.cu"
 
+static NVCTimer timer;
+
 // ---------------------------------------------------------------------------
 // Return string with GPU info
 // ---------------------------------------------------------------------------
@@ -58,6 +60,8 @@ EXTERN bool hertz_gpu_init(
     ncellx, ncelly, ncellz);
    
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
+
+  timer.init();
 
   return true;
 }
@@ -317,6 +321,7 @@ EXTERN double hertz_gpu_cell(
   cudaPrintfInit(0x1<<30);
 #endif
 
+  timer.start();
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
     cell_list_gpu.pos,
     cell_list_gpu.idx,
@@ -327,6 +332,8 @@ EXTERN double hertz_gpu_cell(
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );
+  timer.stop();
+  timer.add_to_total();
 
 #ifdef VERBOSE
   cudaPrintfDisplay(stdout, true);
@@ -360,6 +367,7 @@ EXTERN double hertz_gpu_cell(
 }
 
 EXTERN void hertz_gpu_time() {
+  printf("Kernel time %.16fms\n", timer.total_time());
 }
 
 EXTERN int hertz_gpu_num_devices() {
