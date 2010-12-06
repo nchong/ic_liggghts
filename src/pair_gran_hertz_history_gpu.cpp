@@ -179,7 +179,7 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
   static bool first_gpu_step = true;
   bool always_resync = false; //< always resync gpu datastructures with host
 
-  if (inum == 0 || step < 100) {
+  if (inum == 0 || step < 27) {
     PairGranHertzHistory::compute(eflag, vflag);
   } else {
     printf("Test run for step %d!\n", step);
@@ -280,7 +280,8 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
 
     fflush(ofile);
     fclose(ofile);
-
-    exit(0);
+    
+    if (step > 101)
+      exit(0);
   }
 }

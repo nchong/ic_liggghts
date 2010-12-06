@@ -197,6 +197,7 @@ __global__ void kernel_hertz_cell(
 			       const int inum,
 			       const int ncellx, const int ncelly, const int ncellz,
              //passed in global memory
+             double *x,
              double *v,
              double *omega,
              double *radius,
@@ -266,6 +267,11 @@ __global__ void kernel_hertz_cell(
       xi[2] = posSh[i+2*blockSize];
       typei = typeSh[i];
       //load from global memory (TODO: shift to shared)
+      //temporary--overwrite using double values---
+      xi[0] = x[(answer_pos*3)];
+      xi[1] = x[(answer_pos*3)+1];
+      xi[2] = x[(answer_pos*3)+2];
+      //temporary
       vi[0] = v[(answer_pos*3)];
       vi[1] = v[(answer_pos*3)+1];
       vi[2] = v[(answer_pos*3)+2];
@@ -286,6 +292,11 @@ __global__ void kernel_hertz_cell(
         typej = typeSh[j];
 
         int idxj = cell_idx[cid*blockSize+j]; //within same cell as i
+        //temporary--overwrite using double values---
+        xj[0] = x[(idxj*3)];
+        xj[1] = x[(idxj*3)+1];
+        xj[2] = x[(idxj*3)+2];
+        //temporary
         vj[0] = v[(idxj*3)];
         vj[1] = v[(idxj*3)+1];
         vj[2] = v[(idxj*3)+2];
@@ -347,6 +358,11 @@ __global__ void kernel_hertz_cell(
                 typej = typeSh[j];
 
                 int idxj = cell_idx[cid_nbor*blockSize+j];
+                //temporary--overwrite using double values---
+                xj[0] = x[(idxj*3)];
+                xj[1] = x[(idxj*3)+1];
+                xj[2] = x[(idxj*3)+2];
+                //temporary
                 vj[0] = v[(idxj*3)];
                 vj[1] = v[(idxj*3)+1];
                 vj[2] = v[(idxj*3)+2];

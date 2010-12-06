@@ -61,7 +61,7 @@ EXTERN bool hertz_gpu_init(
    
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
 
-  timer.init();
+  //timer.init();
 
   return true;
 }
@@ -245,6 +245,7 @@ EXTERN double hertz_gpu_cell(
     init_cell_list(cell_list_gpu, nall, ncell, blockSize);
 
     //malloc device data
+    cudaMalloc((void**)&d_x, SIZE_2D);
     cudaMalloc((void**)&d_v, SIZE_2D);
     cudaMalloc((void**)&d_omega, SIZE_2D);
     cudaMalloc((void**)&d_shear, SIZE_2D);
@@ -281,18 +282,35 @@ EXTERN double hertz_gpu_cell(
   }
 
   //flatten 2d atom data
+  double *h_x = (double *)malloc(SIZE_2D);
   double *h_v = (double *)malloc(SIZE_2D);
   double *h_omega = (double *)malloc(SIZE_2D);
   double *h_torque = (double *)malloc(SIZE_2D);
   double *h_f = (double *)malloc(SIZE_2D);
   for (int i=0; i< nall; i++) {
     for (int j=0; j<3; j++) {
+      h_x[(i*3)+j] = host_x[i][j];
       h_v[(i*3)+j] = host_v[i][j];
       h_omega[(i*3)+j] = host_omega[i][j];
       h_torque[(i*3)+j] = host_torque[i][j];
       h_f[(i*3)+j] = host_force[i][j];
     }
   }
+  //paranoid
+  for (int i=0; i< nall; i++) {
+    for (int j=0; j<3; j++) {
+      if (h_x[(i*3)+j] != host_x[i][j] ||
+          h_v[(i*3)+j] != host_v[i][j] ||
+          h_omega[(i*3)+j] != host_omega[i][j] ||
+          h_torque[(i*3)+j] != host_torque[i][j] ||
+          h_f[(i*3)+j] != host_force[i][j]) {
+          printf("error: mismatch building host gpu datastructures\n");
+          exit(1);
+      }
+    }
+  }
+
+  cudaMemcpy(d_x, h_x, SIZE_2D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_v, h_v, SIZE_2D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_omega, h_omega, SIZE_2D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_torque, h_torque, SIZE_2D, cudaMemcpyHostToDevice);
@@ -321,19 +339,19 @@ EXTERN double hertz_gpu_cell(
   cudaPrintfInit(0x1<<30);
 #endif
 
-  timer.start();
+  //timer.start();
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
     cell_list_gpu.pos,
     cell_list_gpu.idx,
     cell_list_gpu.type,
     cell_list_gpu.natom,
     inum, ncellx, ncelly, ncellz,
-    d_v, d_omega, d_radius, d_rmass, d_shearmap, d_torque, d_f,
+    d_x, d_v, d_omega, d_radius, d_rmass, d_shearmap, d_torque, d_f,
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );
-  timer.stop();
-  timer.add_to_total();
+  //timer.stop();
+  //timer.add_to_total();
 
 #ifdef VERBOSE
   cudaPrintfDisplay(stdout, true);
