@@ -106,7 +106,13 @@ EXTERN struct hashmap **create_shearmap(
       //TODO: necessary to check firsttouch[i][jj] == 1?
       double *shear = &firstshear[i][3*jj];
       insert_hashmap(shearmap[i], j, shear);
-      insert_hashmap(shearmap[j], i, shear);
+
+      //symmetric-shear for particle j
+      double nshear[3];
+      nshear[0] = -shear[0];
+      nshear[1] = -shear[1];
+      nshear[2] = -shear[2];
+      insert_hashmap(shearmap[j], i, nshear);
     }
   }
 
@@ -125,40 +131,16 @@ EXTERN struct hashmap **create_shearmap(
       assert(result->shear[0] == shear[0]);
       assert(result->shear[1] == shear[1]);
       assert(result->shear[2] == shear[2]);
+
+      result = retrieve_hashmap(shearmap[j], i);
+      assert(result);
+      assert(result->shear[0] == -shear[0]);
+      assert(result->shear[1] == -shear[1]);
+      assert(result->shear[2] == -shear[2]);
     }
   }
 
   return shearmap;
-}
-
-EXTERN void compare_shearmap(
-  FILE *ofile,
-  struct hashmap **shearmap,
-  int inum,
-  int *ilist,
-  int *numneigh,
-  int **firstneigh,
-  int **firsttouch,
-  double **firstshear) {
-
-  struct entry *result = retrieve_hashmap(shearmap[107], 108);
-  for (int ii=0; ii<inum; ii++) {
-    int i = ilist[ii];
-    int jnum = numneigh[i];
-
-    for (int jj = 0; jj<jnum; jj++) {
-      int j = firstneigh[i][jj];
-
-      struct entry *result = retrieve_hashmap(shearmap[i], j);
-      if (result == NULL) {
-        fprintf(ofile, "shear[%d][%d] mismatch!\n", i,j);
-      }
-      double *shear = &firstshear[i][3*jj];
-      for (int k=0; k<3; k++) {
-        fprintf(ofile, "shear[%d][%d][%d], %.16f, %.16f\n", i,j,k,shear[k], result->shear[k]);
-      }
-    }
-  }
 }
 
 EXTERN void update_from_shearmap(

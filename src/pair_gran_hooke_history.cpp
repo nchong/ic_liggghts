@@ -22,7 +22,7 @@ See the README file in the top-level LAMMPS directory.
    Contributing authors for original version: Leo Silbert (SNL), Gary Grest (SNL)
 ------------------------------------------------------------------------- */
 
-#define EMIT_DIAGNOSTICS //< Write to [diagnostics.txt]
+//#define EMIT_DIAGNOSTICS //< Write to [diagnostics.txt]
 //#define EMIT_PAIRWISE //< Write to [pairwise_data.csv] for [play/hertz.cu]
 
 #include "math.h"

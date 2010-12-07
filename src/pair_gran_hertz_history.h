@@ -41,7 +41,10 @@ class PairGranHertzHistory : public PairGranHookeHistory {
   PairGranHertzHistory(class LAMMPS *);
   void settings(int, char **);
   void init_substyle(); 
-  //compute removed 
+  void compute(int, int);
+  void emit_results(int, char *);
+  void emit_particle_details(int,bool);
+
  protected:
    virtual void deriveContactModelParams(int &, int &,double &, double &, double &,double &, double &, double &, double &);
 };

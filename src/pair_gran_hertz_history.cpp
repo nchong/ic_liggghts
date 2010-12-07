@@ -110,3 +110,72 @@ void PairGranHertzHistory::settings(int narg, char **arg)
   if (dampflag < 0 || dampflag > 1 || cohesionflag < 0 || cohesionflag > 1)
     error->all("Illegal pair_style command");
 }
+
+void PairGranHertzHistory::emit_results(int step, char *fname) {
+  int inum = list->inum;
+  int nall = atom->nlocal + atom->nghost;
+
+  FILE *ofile = fopen(fname, "a");
+  fprintf(ofile, "Step %d\n", step);
+  fprintf(ofile, "Force comparison\n");
+  for (int i=0; i<nall; i++) {
+    for (int j=0; j<3; j++) {
+      fprintf(ofile, "f[%d][%d], %.16f\n", i,j,atom->f[i][j]);
+    }
+  }
+  fprintf(ofile, "Torque comparison\n");
+  for (int i=0; i<nall; i++) {
+    for (int j=0; j<3; j++) {
+      fprintf(ofile, "torque[%d][%d], %.16f\n", i,j,atom->torque[i][j]);
+    }
+  }
+  fprintf(ofile, "Shear comparison\n");
+  for (int ii=0; ii<inum; ii++) {
+    int i = list->ilist[ii];
+    int jnum = list->numneigh[i];
+
+    for (int jj = 0; jj<jnum; jj++) {
+      int j = list->firstneigh[i][jj];
+
+      double *shear = &(listgranhistory->firstdouble[i][3*jj]);
+      for (int k=0; k<3; k++) {
+        fprintf(ofile, "shear[%d][%d][%d], %.16f\n", i,j,k,shear[k]);
+      }
+    }
+  }
+  fflush(ofile);
+  fclose(ofile);
+}
+
+void PairGranHertzHistory::emit_particle_details(int i, bool do_header=true) {
+  if (do_header) {
+    printf("particle %d\n", i);
+    printf("x\n%.16f\n%.16f\n%.16f\n",
+      atom->x[i][0], atom->x[i][1], atom->x[i][2]);
+    printf("v\n%.16f\n%.16f\n%.16f\n",
+      atom->v[i][0], atom->v[i][1], atom->v[i][2]);
+    printf("omega\n%.16f\n%.16f\n%.16f\n",
+      atom->omega[i][0], atom->omega[i][1], atom->omega[i][2]);
+    printf("radius\n%.16f\n", atom->radius[i]);
+    printf("rmass\n%.16f\n", atom->rmass[i]);
+  }
+
+  printf("torque\n%.16f\n%.16f\n%.16f\n",
+    atom->torque[i][0], atom->torque[i][1], atom->torque[i][2]);
+  printf("force\n%.16f\n%.16f\n%.16f\n",
+    atom->f[i][0], atom->f[i][1], atom->f[i][2]);
+}
+
+void PairGranHertzHistory::compute(int eflag, int vflag) {
+  static int step = -1; step++;
+  if (step > 26) {
+    printf("[C] Test run for step %d!\n", step);
+  }
+
+  PairGranHookeHistory::compute(eflag, vflag);
+
+  if (step > 26) {
+    emit_results(step, "cpu.out");
+  }
+  if (step == 100) exit(0);
+}

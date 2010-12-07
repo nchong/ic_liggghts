@@ -46,8 +46,7 @@ struct hashmap **create_shearmap(
   int **firstneigh, /*list->firstneigh*/
   int **firsttouch, /*listgranhistory->firstneigh*/
   double **firstshear /*listgranhistory->firstdouble*/);
-void compare_shearmap(
-  FILE *ofile,
+void update_from_shearmap(
   struct hashmap **shearmap,
   int inum, /*list->inum*/
   int *ilist, /*list->ilist*/
@@ -148,77 +147,24 @@ void PairGranHertzHistoryGPU::init_style()
   }
 }
 
-void PairGranHertzHistoryGPU::emit_particle_details(int i, bool do_header=true) {
-  if (do_header) {
-    printf("particle %d\n", i);
-    printf("x\n%.16f\n%.16f\n%.16f\n",
-      atom->x[i][0], atom->x[i][1], atom->x[i][2]);
-    printf("v\n%.16f\n%.16f\n%.16f\n",
-      atom->v[i][0], atom->v[i][1], atom->v[i][2]);
-    printf("omega\n%.16f\n%.16f\n%.16f\n",
-      atom->omega[i][0], atom->omega[i][1], atom->omega[i][2]);
-    printf("radius\n%.16f\n", atom->radius[i]);
-    printf("rmass\n%.16f\n", atom->rmass[i]);
-  }
-
-  printf("torque\n%.16f\n%.16f\n%.16f\n",
-    atom->torque[i][0], atom->torque[i][1], atom->torque[i][2]);
-  printf("force\n%.16f\n%.16f\n%.16f\n",
-    atom->f[i][0], atom->f[i][1], atom->f[i][2]);
-}
-
-//make gpu datastructures persistent across compute() calls
-static hashmap **shearmap;
-static double **gpu_torque;
-static double **gpu_force;
-static int gpu_nall = 0;
-
 void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
   int inum = list->inum;
   static int step = -1; step++;
-  static bool first_gpu_step = true;
-  bool always_resync = false; //< always resync gpu datastructures with host
 
-  if (inum == 0 || step < 27) {
-    PairGranHertzHistory::compute(eflag, vflag);
+  if (inum == 0 || step < 70) {
+    //PairGranHertzHistory::compute(eflag, vflag);
+    PairGranHookeHistory::compute(eflag, vflag);
   } else {
-    printf("Test run for step %d!\n", step);
+    printf("[G] Test run for step %d!\n", step);
 
     inum = atom->nlocal;
     int nall = atom->nlocal + atom->nghost;
     int num_atom_types =  mpg->max_type+1;
 
-    //inouts: shear, torque and force
-    //create deep copies so we can compare results with CPU simulation
-    shearmap = create_shearmap(
+    //create cpu shearmap for device
+    struct hashmap **shearmap = create_shearmap(
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
-
-    size_t table_size = nall * sizeof(double *);
-    gpu_torque = (double **)malloc(table_size);
-    gpu_force = (double **)malloc(table_size);
-    for (int i=0; i<nall; i++) {
-      gpu_torque[i] = (double *)malloc(3 * sizeof(double));
-      gpu_force[i] = (double *)malloc(3 * sizeof(double));
-      for (int j=0; j<3; j++) {
-        gpu_torque[i][j] = atom->torque[i][j];
-        gpu_force[i][j] = atom->f[i][j];
-      }
-    }
-    for (int i=0; i<nall; i++) {
-      for (int j=0; j<3; j++) {
-        if (gpu_torque[i][j] != atom->torque[i][j]) {
-          printf("torque[%d][%d] mismatch: %f / %f\n", 
-              i, j, gpu_torque[i][j], atom->torque[i][j]);
-          exit(1);
-        }
-        if (gpu_force[i][j] != atom->f[i][j]) {
-          printf("force[%d][%d] mismatch: %f / %f\n", 
-              i, j, gpu_force[i][j], atom->f[i][j]);
-          exit(1);
-        }
-      }
-    }
 
     //call gpu using host-level gpu datastructures
     hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
@@ -235,37 +181,15 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       force->nktv2p,
 
       shearmap,
-      gpu_torque,
-      gpu_force);
+      atom->torque,
+      atom->f);
 
-    //call cpu golden reference on "real" datastructures
-    PairGranHertzHistory::compute(eflag, vflag);
-
-    //printf("Post-kernel\n");
-    FILE *ofile = fopen("compare.csv", "a");
-    fprintf(ofile, "Step %d\n", step);
-    fprintf(ofile, "Force comparison\n");
-    for (int i=0; i<nall; i++) {
-      for (int j=0; j<3; j++) {
-        fprintf(ofile, "f[%d][%d], %.16f, %.16f\n", i,j,atom->f[i][j],gpu_force[i][j]);
-      }
-    }
-    fprintf(ofile, "Torque comparison\n");
-    for (int i=0; i<nall; i++) {
-      for (int j=0; j<3; j++) {
-        fprintf(ofile, "torque[%d][%d], %.16f, %.16f\n", i,j,atom->torque[i][j],gpu_torque[i][j]);
-      }
-    }
-    fprintf(ofile, "Shear comparison\n");
-    compare_shearmap(
-        ofile, shearmap,
+    //get shear results back from device
+    update_from_shearmap(shearmap,
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
-    fflush(ofile);
-    fclose(ofile);
-    
-    if (step > 101)
-      exit(0);
+    PairGranHertzHistory::emit_results(step, "gpu.out");
+    if (step == 100) exit(0);
   }
 }
