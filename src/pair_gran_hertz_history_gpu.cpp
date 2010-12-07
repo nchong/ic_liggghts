@@ -220,22 +220,6 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       }
     }
 
-    //paranoid
-    for (int i=0; i<nall; i++) {
-      for (int j=0; j<3; j++) {
-        if (gpu_torque[i][j] != atom->torque[i][j]) {
-          printf("torque[%d][%d] mismatch: %f / %f\n", 
-              i, j, gpu_torque[i][j], atom->torque[i][j]);
-          exit(1);
-        }
-        if (gpu_force[i][j] != atom->f[i][j]) {
-          printf("force[%d][%d] mismatch: %f / %f\n", 
-              i, j, gpu_force[i][j], atom->f[i][j]);
-          exit(1);
-        }
-      }
-    }
-
     //call gpu using host-level gpu datastructures
     hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
       atom->x, atom->v, atom->omega,
