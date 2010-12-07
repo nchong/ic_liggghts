@@ -306,8 +306,11 @@ __global__ void kernel_hertz_cell(
         radj = radius[idxj];
         rmassj = rmass[idxj];
         struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-        if (lookup == NULL) { //on miss, so go onto next j
-          continue;
+        if (lookup == NULL) {
+          lookup = cuda_retrieve_hashmap(&shearmap[idxj], answer_pos);
+          if (lookup == NULL) { //on miss, so go onto next j
+            continue;
+          }
         }
 
         //todo why doesn't the following work?
@@ -372,8 +375,11 @@ __global__ void kernel_hertz_cell(
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
                 struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-                if (lookup == NULL) { //on miss, so go onto next j
-                  continue;
+                if (lookup == NULL) {
+                  lookup = cuda_retrieve_hashmap(&shearmap[idxj], answer_pos);
+                  if (lookup == NULL) { //on miss, so go onto next j
+                    continue;
+                  }
                 }
 
                 shear[0] = lookup->shear[0];
