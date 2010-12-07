@@ -307,18 +307,9 @@ __global__ void kernel_hertz_cell(
         rmassj = rmass[idxj];
         struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
         if (lookup == NULL) {
-          lookup = cuda_retrieve_hashmap(&shearmap[idxj], answer_pos);
-          if (lookup == NULL) { //on miss, so go onto next j
-            continue;
-          }
+          continue; //on miss, so go onto next j
         }
-
-        //todo why doesn't the following work?
-        //shear = &(lookup->shear);
-        //instead, have to copy and copy-back
-        shear[0] = lookup->shear[0];
-        shear[1] = lookup->shear[1];
-        shear[2] = lookup->shear[2];
+        shear = lookup->shear;
 
         pair_interaction(
             xi, xj, vi, vj, omegai, omegaj,
@@ -327,10 +318,6 @@ __global__ void kernel_hertz_cell(
             dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
             shear, torquei, force);
 
-        //todo
-        lookup->shear[0] = shear[0];
-        lookup->shear[1] = shear[1];
-        lookup->shear[2] = shear[2];
       }
       __syncthreads();
 
@@ -376,15 +363,9 @@ __global__ void kernel_hertz_cell(
                 rmassj = rmass[idxj];
                 struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
                 if (lookup == NULL) {
-                  lookup = cuda_retrieve_hashmap(&shearmap[idxj], answer_pos);
-                  if (lookup == NULL) { //on miss, so go onto next j
-                    continue;
-                  }
+                  continue; //on miss, so go onto next j
                 }
-
-                shear[0] = lookup->shear[0];
-                shear[1] = lookup->shear[1];
-                shear[2] = lookup->shear[2];
+                shear = lookup->shear;
 
                 pair_interaction(
                     xi, xj, vi, vj, omegai, omegaj,
@@ -392,10 +373,6 @@ __global__ void kernel_hertz_cell(
                     //passed through (constant)
                     dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
                     shear, torquei, force);
-
-                lookup->shear[0] = shear[0];
-                lookup->shear[1] = shear[1];
-                lookup->shear[2] = shear[2];
               }
             }
           }

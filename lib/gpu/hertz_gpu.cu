@@ -91,20 +91,23 @@ EXTERN struct hashmap **create_shearmap(
   struct hashmap **shearmap;
   shearmap = (struct hashmap **)malloc(sizeof(struct hashmap) * inum);
 
+  //create empty hashmaps
+  for (int i=0; i<inum; i++) {
+    shearmap[i] = create_hashmap(32);
+  }
   for (int ii=0; ii<inum; ii++) {
     int i = ilist[ii];
     int jnum = numneigh[i];
     assert(jnum < 32);
 
-    struct hashmap *hm = create_hashmap(32);
     for (int jj = 0; jj<jnum; jj++) {
       int j = firstneigh[i][jj];
 
       //TODO: necessary to check firsttouch[i][jj] == 1?
       double *shear = &firstshear[i][3*jj];
-      insert_hashmap(hm, j, shear);
+      insert_hashmap(shearmap[i], j, shear);
+      insert_hashmap(shearmap[j], i, shear);
     }
-    shearmap[i] = hm;
   }
 
   //paranoid
