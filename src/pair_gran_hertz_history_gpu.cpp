@@ -39,15 +39,15 @@
 
 bool hertz_gpu_init(double *boxlo, double *boxhi, double cell_len, double skin);
 void hertz_gpu_clear();
-struct hashmap **create_shearmap(
+struct fshearmap *create_fshearmap(
   int inum, /*list->inum*/
   int *ilist, /*list->ilist*/
   int *numneigh, /*list->numneigh*/
   int **firstneigh, /*list->firstneigh*/
   int **firsttouch, /*listgranhistory->firstneigh*/
   double **firstshear /*listgranhistory->firstdouble*/);
-void update_from_shearmap(
-  struct hashmap **shearmap,
+void update_from_fshearmap(
+  struct fshearmap *fshearmap,
   int inum, /*list->inum*/
   int *ilist, /*list->ilist*/
   int *numneigh, /*list->numneigh*/
@@ -73,7 +73,8 @@ double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap **&host_shear, double **host_torque, double **host_force);
+  struct fshearmap *&host_fshearmap,
+  double **host_torque, double **host_force);
 void hertz_gpu_name(const int gpu_id, const int max_nbors, char * name);
 void hertz_gpu_time();
 double hertz_gpu_bytes();
@@ -161,8 +162,8 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
     int nall = atom->nlocal + atom->nghost;
     int num_atom_types =  mpg->max_type+1;
 
-    //create cpu shearmap for device
-    struct hashmap **shearmap = create_shearmap(
+    //create host fshearmap for device
+    struct fshearmap *fmap = create_fshearmap(
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
@@ -180,16 +181,16 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       mpg->coeffFrict,
       force->nktv2p,
 
-      shearmap,
+      fmap,
       atom->torque,
       atom->f);
 
-    //get shear results back from device
-    update_from_shearmap(shearmap,
+    //get shear results back from device (NB: frees fmap)
+    update_from_fshearmap(fmap,
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
     PairGranHertzHistory::emit_results(step, "gpu.out");
-    if (step == 100) exit(0);
+    if (step == 75) exit(0);
   }
 }

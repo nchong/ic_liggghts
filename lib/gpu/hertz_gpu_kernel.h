@@ -20,8 +20,7 @@
 #ifndef HERTZ_GPU_KERNEL
 #define HERTZ_GPU_KERNEL
 
-#include "cuPrintf.cu"
-#include "hashmap.cu"
+#include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
 __device__ void pair_interaction(
@@ -202,7 +201,10 @@ __global__ void kernel_hertz_cell(
              double *omega,
              double *radius,
              double *rmass,
-             struct hashmap *shearmap,  //] inouts
+
+             bool *fshearmap_valid,
+             int *fshearmap_key,
+             double *fshearmap_shear,   //] inouts
              double *torque,            //]
              double *f,                 //]
              //passed through value
@@ -254,13 +256,7 @@ __global__ void kernel_hertz_cell(
       double radi; double radj;
       double rmassi; double rmassj;
       int typei; int typej;
-      double *shear;
       double *torquei; double *force;
-
-      //temporary
-      double shear_dummy[3] = {0.0, 0.0, 0.0};
-      shear = &shear_dummy[0];
-      //temporary
 
       xi[0] = posSh[i            ];
       xi[1] = posSh[i+  blockSize];
@@ -305,19 +301,19 @@ __global__ void kernel_hertz_cell(
         omegaj[2] = omega[(idxj*3)+2];
         radj = radius[idxj];
         rmassj = rmass[idxj];
-        struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-        if (lookup == NULL) {
-          continue; //on miss, so go onto next j
+        double *fshear = cuda_retrieve_fshearmap(
+          fshearmap_valid, fshearmap_key, fshearmap_shear,
+          answer_pos, idxj);
+        if (fshear == NULL) {
+          continue; //on miss, go onto next j
         }
-        shear = lookup->shear;
 
         pair_interaction(
             xi, xj, vi, vj, omegai, omegaj,
             radi, radj, rmassi, rmassj, 0, 0, typei, typej,
             //passed through (constant)
             dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
-            shear, torquei, force);
-
+            fshear, torquei, force);
       }
       __syncthreads();
 
@@ -361,18 +357,19 @@ __global__ void kernel_hertz_cell(
                 omegaj[2] = omega[(idxj*3)+2];
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
-                struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
-                if (lookup == NULL) {
-                  continue; //on miss, so go onto next j
+                double *fshear = cuda_retrieve_fshearmap(
+                  fshearmap_valid, fshearmap_key, fshearmap_shear,
+                  answer_pos, idxj);
+                if (fshear == NULL) {
+                  continue; //on miss, go onto next j
                 }
-                shear = lookup->shear;
 
                 pair_interaction(
                     xi, xj, vi, vj, omegai, omegaj,
                     radi, radj, rmassi, rmassj, 0, 0, typei, typej,
                     //passed through (constant)
                     dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
-                    shear, torquei, force);
+                    fshear, torquei, force);
               }
             }
           }

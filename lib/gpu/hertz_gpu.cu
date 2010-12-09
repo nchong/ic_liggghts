@@ -28,7 +28,7 @@
 #include "hertz_gpu_kernel.h"
 
 #include "cuPrintf.cu"
-#include "hashmap.cu"
+#include "fshearmap.cu"
 
 static NVCTimer timer;
 
@@ -72,7 +72,7 @@ EXTERN bool hertz_gpu_init(
 EXTERN void hertz_gpu_clear() {
 }
 
-EXTERN struct hashmap **create_shearmap(
+EXTERN struct fshearmap *create_fshearmap(
   //number of atoms (ranged over by ii)
   int inum, /*list->inum*/
   //id of atom ii (ranged over by i)
@@ -86,17 +86,11 @@ EXTERN struct hashmap **create_shearmap(
   int **firsttouch, /*listgranhistory->firstneigh*/
   //firstshear[i][3*jj] is the shear vector between atoms i and j
   double **firstshear /*listgranhistory->firstdouble*/) {
+  struct fshearmap *map = malloc_fshearmap(inum);
 
-  //shearmap[i] is a hashmap for atoms in contact with atom i
-  struct hashmap **shearmap;
-  shearmap = (struct hashmap **)malloc(sizeof(struct hashmap) * inum);
-
-  //create empty hashmaps
-  for (int i=0; i<inum; i++) {
-    shearmap[i] = create_hashmap(32);
-  }
   for (int ii=0; ii<inum; ii++) {
     int i = ilist[ii];
+    assert(i < inum);
     int jnum = numneigh[i];
     assert(jnum < 32);
 
@@ -105,14 +99,14 @@ EXTERN struct hashmap **create_shearmap(
 
       //TODO: necessary to check firsttouch[i][jj] == 1?
       double *shear = &firstshear[i][3*jj];
-      insert_hashmap(shearmap[i], j, shear);
+      insert_fshearmap(map, i, j, shear);
 
       //symmetric-shear for particle j
       double nshear[3];
       nshear[0] = -shear[0];
       nshear[1] = -shear[1];
       nshear[2] = -shear[2];
-      insert_hashmap(shearmap[j], i, nshear);
+      insert_fshearmap(map, j, i, nshear);
     }
   }
 
@@ -121,37 +115,35 @@ EXTERN struct hashmap **create_shearmap(
     int i = ilist[ii];
     int jnum = numneigh[i];
 
-    struct hashmap *hm = create_hashmap(32);
     for (int jj = 0; jj<jnum; jj++) {
       int j = firstneigh[i][jj];
+
       double *shear = &firstshear[i][3*jj];
-
-      struct entry *result = retrieve_hashmap(shearmap[i], j);
+      double *result = retrieve_fshearmap(map, i, j);
       assert(result);
-      assert(result->shear[0] == shear[0]);
-      assert(result->shear[1] == shear[1]);
-      assert(result->shear[2] == shear[2]);
+      assert(result[0] == shear[0]);
+      assert(result[1] == shear[1]);
+      assert(result[2] == shear[2]);
 
-      result = retrieve_hashmap(shearmap[j], i);
+      result = retrieve_fshearmap(map, j, i);
       assert(result);
-      assert(result->shear[0] == -shear[0]);
-      assert(result->shear[1] == -shear[1]);
-      assert(result->shear[2] == -shear[2]);
+      assert(result[0] == -shear[0]);
+      assert(result[1] == -shear[1]);
+      assert(result[2] == -shear[2]);
     }
   }
 
-  return shearmap;
+  return map;
 }
 
-EXTERN void update_from_shearmap(
-  struct hashmap **shearmap,
+EXTERN void update_from_fshearmap(
+  struct fshearmap *map,
   int inum,
   int *ilist,
   int *numneigh,
   int **firstneigh,
   int **firsttouch,
   double **firstshear) {
-
   for (int ii=0; ii<inum; ii++) {
     int i = ilist[ii];
     int jnum = numneigh[i];
@@ -159,35 +151,16 @@ EXTERN void update_from_shearmap(
     for (int jj = 0; jj<jnum; jj++) {
       int j = firstneigh[i][jj];
 
-      struct entry *result = retrieve_hashmap(shearmap[i], j);
+      double *result = retrieve_fshearmap(map, i, j);
+      assert(result);
       double *shear = &firstshear[i][3*jj];
-      shear[0] = result->shear[0];
-      shear[1] = result->shear[1];
-      shear[2] = result->shear[2];
+      shear[0] = result[0];
+      shear[1] = result[1];
+      shear[2] = result[2];
       //TODO: necessary to uncheck firsttouch[i][jj]?
     }
   }
-}
-
-struct hashmap *c_to_device_shearmap(struct hashmap **shearmap, int inum) { 
-  struct hashmap *d_shearmap;
-  ASSERT_NO_CUDA_ERROR(
-    cudaMalloc((void **)&d_shearmap, sizeof(struct hashmap) * inum));
-
-  for (int i=0; i<inum; i++) {
-    struct hashmap *d_hm = c_to_device_hashmap(shearmap[i]);
-    ASSERT_NO_CUDA_ERROR(cudaMemcpy(&d_shearmap[i], d_hm, sizeof(struct hashmap), cudaMemcpyDeviceToDevice));
-  }
-  return d_shearmap;
-}
-
-struct hashmap **device_to_c_shearmap(struct hashmap *d_shearmap, int inum) {
-  struct hashmap **shearmap = 
-    (struct hashmap **)malloc(sizeof(struct hashmap) * inum);
-  for (int i=0; i<inum; i++) {
-    shearmap[i] = device_to_c_hashmap(&d_shearmap[i]);
-  }
-  return shearmap;
+  free_fshearmap(map);
 }
 
 EXTERN double hertz_gpu_cell(
@@ -209,7 +182,8 @@ EXTERN double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap**&host_shear, double **host_torque, double **host_force)
+  struct fshearmap *&host_fshearmap,
+  double **host_torque, double **host_force)
 {
   static int blockSize = BLOCK_1D;
   static int ncell = ncellx*ncelly*ncellz;
@@ -308,7 +282,9 @@ EXTERN double hertz_gpu_cell(
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
 
-  struct hashmap *d_shearmap = c_to_device_shearmap(host_shear, inum);
+  struct fshearmap gpu_fshearmap;
+  malloc_device_fshearmap(gpu_fshearmap, inum);
+  copy_into_device_fshearmap(gpu_fshearmap, host_fshearmap);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -320,7 +296,6 @@ EXTERN double hertz_gpu_cell(
   dim3 GX(ncellx, ncelly*ncellz);
 
 #ifdef VERBOSE
-  printf("kernel<<<BX=%d, GX=(%d,%d)>>>\n", BX, ncellx, ncelly*ncellz);
   cudaPrintfInit(0x1<<30);
 #endif
 
@@ -331,7 +306,10 @@ EXTERN double hertz_gpu_cell(
     cell_list_gpu.type,
     cell_list_gpu.natom,
     inum, ncellx, ncelly, ncellz,
-    d_x, d_v, d_omega, d_radius, d_rmass, d_shearmap, d_torque, d_f,
+    d_x, d_v, d_omega, d_radius, d_rmass, 
+
+    gpu_fshearmap.valid, gpu_fshearmap.key, gpu_fshearmap.shear,
+    d_torque, d_f,
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );
@@ -353,7 +331,8 @@ EXTERN double hertz_gpu_cell(
   }
 
   //copy back force calculations (shear, torque, force)
-  host_shear = device_to_c_shearmap(d_shearmap ,inum);
+  copy_from_device_fshearmap(gpu_fshearmap, host_fshearmap);
+  free_device_fshearmap(gpu_fshearmap);
   cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost);
   cudaMemcpy(h_f, d_f, SIZE_2D, cudaMemcpyDeviceToHost);
   for (int i=0; i<nall; i++) {
