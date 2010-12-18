@@ -51,6 +51,7 @@ EXTERN bool hertz_gpu_init(
   ncelly = ceil(((boxhi[1] - boxlo[1]) + 2.0*cell_size) / cell_size);
   ncellz = ceil(((boxhi[2] - boxlo[2]) + 2.0*cell_size) / cell_size);
 
+#ifdef VERBOSE
   printf("> hertz_gpu_init\n");
   printf("> cell_size = %f\n", cell_size);
   printf("> boxhi = {%f, %f, %f}; boxlo = {%f, %f, %f}\n", 
@@ -58,6 +59,7 @@ EXTERN bool hertz_gpu_init(
     boxlo[0], boxlo[1], boxlo[2]);
   printf("> ncellx = %d; ncelly = %d; ncellz = %d;\n",
     ncellx, ncelly, ncellz);
+#endif
    
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
 
@@ -188,18 +190,14 @@ EXTERN double hertz_gpu_cell(
   static int blockSize = BLOCK_1D;
   static int ncell = ncellx*ncelly*ncellz;
 
-#ifdef VERBOSE
-  printf("> inum = %d\n", inum);
-  printf("> nall = %d\n", nall);
-#endif
   // -----------------------------------------------------------
   // Device variables
   // -----------------------------------------------------------
   const int SIZE_1D = (nall * sizeof(double));
   const int SIZE_2D = (3 * SIZE_1D);
-  static bool first_call = true;
-  if (first_call) {
-    first_call = false;
+  //static bool first_call = true;
+  //if (first_call) {
+  //  first_call = false;
 
     init_cell_list(cell_list_gpu, nall, ncell, blockSize);
 
@@ -212,6 +210,7 @@ EXTERN double hertz_gpu_cell(
     cudaMalloc((void**)&d_f, SIZE_2D);
     //shear done later
 
+    cudaMalloc((void**)&d_atom_type, SIZE_1D);
     cudaMalloc((void**)&d_radius, SIZE_1D);
     cudaMalloc((void**)&d_rmass, SIZE_1D);
 
@@ -234,11 +233,12 @@ EXTERN double hertz_gpu_cell(
         h_coeffFrict[i + (j*num_atom_types)] = host_coeffFrict[i][j];
       }
     }
+
     cudaMemcpy(d_Yeff, h_Yeff, PARAM_SIZE, cudaMemcpyHostToDevice);
     cudaMemcpy(d_Geff, h_Geff, PARAM_SIZE, cudaMemcpyHostToDevice);
     cudaMemcpy(d_betaeff, h_betaeff, PARAM_SIZE, cudaMemcpyHostToDevice);
     cudaMemcpy(d_coeffFrict, h_coeffFrict, PARAM_SIZE, cudaMemcpyHostToDevice);
-  }
+  //}
 
   //flatten 2d atom data
   double *h_x = (double *)malloc(SIZE_2D);
@@ -276,6 +276,7 @@ EXTERN double hertz_gpu_cell(
   cudaMemcpy(d_f, h_f, SIZE_2D, cudaMemcpyHostToDevice);
 
   //just copy across 1d atom data
+  cudaMemcpy(d_atom_type, host_type, SIZE_1D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_rmass, host_rmass, SIZE_1D, cudaMemcpyHostToDevice);
 
@@ -295,18 +296,14 @@ EXTERN double hertz_gpu_cell(
   const int BX=blockSize;
   dim3 GX(ncellx, ncelly*ncellz);
 
-#ifdef VERBOSE
-  cudaPrintfInit(0x1<<30);
-#endif
+  cudaPrintfInit();
 
   //timer.start();
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
-    cell_list_gpu.pos,
     cell_list_gpu.idx,
-    cell_list_gpu.type,
     cell_list_gpu.natom,
     inum, ncellx, ncelly, ncellz,
-    d_x, d_v, d_omega, d_radius, d_rmass, 
+    d_atom_type, d_x, d_v, d_omega, d_radius, d_rmass, 
 
     gpu_fshearmap.valid, gpu_fshearmap.key, gpu_fshearmap.shear,
     d_torque, d_f,
@@ -316,12 +313,8 @@ EXTERN double hertz_gpu_cell(
   //timer.stop();
   //timer.add_to_total();
 
-#ifdef VERBOSE
-  cudaPrintfDisplay(stdout, true);
-  //FILE *ofile = fopen("kernel_list.txt", "w");
-  //cudaPrintfDisplay(ofile, true);
+  cudaPrintfDisplay(stderr, true);
   cudaPrintfEnd();
-#endif
 
   cudaThreadSynchronize();
   err = cudaGetLastError();
@@ -344,6 +337,21 @@ EXTERN double hertz_gpu_cell(
     host_force[i][1] = h_f[(i*3)+1];
     host_force[i][2] = h_f[(i*3)+2];
   }
+
+  clear_cell_list(cell_list_gpu);
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_x));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_v));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_omega));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_shear));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_torque));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_f));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_atom_type));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_radius));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_rmass));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_Yeff));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_Geff));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_betaeff));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_coeffFrict));
 
   return 0.0;
 }

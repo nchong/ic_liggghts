@@ -20,6 +20,7 @@
 #ifndef HERTZ_GPU_KERNEL
 #define HERTZ_GPU_KERNEL
 
+#include "cuPrintf.cu"
 #include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
@@ -46,7 +47,6 @@ __device__ void pair_interaction(
     double *shear,
     double *torque,
     double *force) {
-
   // del is the vector from j to i
   double delx = xi[0] - xj[0];
   double dely = xi[1] - xj[1];
@@ -107,6 +107,8 @@ __device__ void pair_interaction(
     //derive contact model parameters (inlined)
     //Yeff, Geff, betaeff, coeffFrict are lookup tables
     //TODO: put these in shared memory
+    if (typei > num_atom_types || typej > num_atom_types)
+      cuPrintf("WARNING: typei = %d; typej = %d\n", typei, typej);
     int typeij = typei + (typej * num_atom_types);
     double reff = radi * radj / (radi + radj);
     double sqrtval = sqrt(reff * deltan);
@@ -117,6 +119,7 @@ __device__ void pair_interaction(
     double gamman=-2.*sqrtFiveOverSix*betaeff[typeij]*sqrt(Sn*meff);
     double gammat=-2.*sqrtFiveOverSix*betaeff[typeij]*sqrt(St*meff);
     double xmu=coeffFrict[typeij];
+
     //not-implemented if (dampflag == 0) gammat = 0;
     kn /= nktv2p;
     kt /= nktv2p;
@@ -191,11 +194,12 @@ __device__ void pair_interaction(
 /* Cell list version of hertz kernel */
 template<bool eflag, bool vflag, int blockSize>
 __global__ void kernel_hertz_cell(
-			       float3 *cell_list, unsigned int *cell_idx,
-			       int *cell_type, int *cell_atom,
+             unsigned int *cell_idx,
+             int *cell_atom,
 			       const int inum,
 			       const int ncellx, const int ncelly, const int ncellz,
              //passed in global memory
+             int *type,
              double *x,
              double *v,
              double *omega,
@@ -226,9 +230,6 @@ __global__ void kernel_hertz_cell(
   // compute cell idx from 3D block idx
   int cid = bx + INT_MUL(by, ncellx) + INT_MUL(bz, INT_MUL(ncellx,ncelly));
 
-  __shared__ int typeSh[blockSize];
-  __shared__ float posSh[blockSize*3];
-
   // compute neighbour cell bounds
   int nborz0 = max(bz-1,0), nborz1 = min(bz+1, ncellz-1),
       nbory0 = max(by-1,0), nbory1 = min(by+1, ncelly-1),
@@ -239,16 +240,6 @@ __global__ void kernel_hertz_cell(
     int i = tid + ii*blockSize;
     unsigned int answer_pos = cell_idx[cid*blockSize+i];
 
-    // load current cell atom position and type into sMem
-    for (int j = tid; j < cell_atom[cid]; j += blockSize) {
-      int pid = cid*blockSize + j;
-      float3 pos = cell_list[pid];
-      posSh[j            ] = pos.x;
-      posSh[j+  blockSize] = pos.y;
-      posSh[j+2*blockSize] = pos.z;
-      typeSh[j]            = cell_type[pid];
-    }
-    __syncthreads();
     if (answer_pos < inum) {
       double xi[3]; double xj[3];
       double vi[3]; double vj[3];
@@ -258,16 +249,11 @@ __global__ void kernel_hertz_cell(
       int typei; int typej;
       double *torquei; double *force;
 
-      xi[0] = posSh[i            ];
-      xi[1] = posSh[i+  blockSize];
-      xi[2] = posSh[i+2*blockSize];
-      typei = typeSh[i];
       //load from global memory (TODO: shift to shared)
-      //temporary--overwrite using double values---
       xi[0] = x[(answer_pos*3)];
       xi[1] = x[(answer_pos*3)+1];
       xi[2] = x[(answer_pos*3)+2];
-      //temporary
+      typei = type[answer_pos];
       vi[0] = v[(answer_pos*3)];
       vi[1] = v[(answer_pos*3)+1];
       vi[2] = v[(answer_pos*3)+2];
@@ -282,17 +268,11 @@ __global__ void kernel_hertz_cell(
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {
 	      if (j == i) continue;
-        xj[0] = posSh[j            ];
-        xj[1] = posSh[j+  blockSize];
-        xj[2] = posSh[j+2*blockSize];
-        typej = typeSh[j];
-
         int idxj = cell_idx[cid*blockSize+j]; //within same cell as i
-        //temporary--overwrite using double values---
         xj[0] = x[(idxj*3)];
         xj[1] = x[(idxj*3)+1];
         xj[2] = x[(idxj*3)+2];
-        //temporary
+        typej = type[idxj];
         vj[0] = v[(idxj*3)];
         vj[1] = v[(idxj*3)+1];
         vj[2] = v[(idxj*3)+2];
@@ -326,29 +306,14 @@ __global__ void kernel_hertz_cell(
                            INT_MUL(nbory,ncellx) +
 	                         INT_MUL(nborz,INT_MUL(ncellx,ncelly));
 
-            // load neighbor cell position and type into smem
-            for (int j = tid; j < cell_atom[cid_nbor]; j += blockSize) {
-              int pid = INT_MUL(cid_nbor,blockSize) + j;
-              float3 pos = cell_list[pid];
-              posSh[j            ] = pos.x;
-              posSh[j+  blockSize] = pos.y;
-              posSh[j+2*blockSize] = pos.z;
-              typeSh[j]           = cell_type[pid];
-            }
-            __syncthreads();
             if (answer_pos < inum) {
               for (int j = 0; j < cell_atom[cid_nbor]; j++) {
-                xj[0] = posSh[j            ];
-                xj[1] = posSh[j+  blockSize];
-                xj[2] = posSh[j+2*blockSize];
-                typej = typeSh[j];
 
                 int idxj = cell_idx[cid_nbor*blockSize+j];
-                //temporary--overwrite using double values---
                 xj[0] = x[(idxj*3)];
                 xj[1] = x[(idxj*3)+1];
                 xj[2] = x[(idxj*3)+2];
-                //temporary
+                typej = type[idxj];
                 vj[0] = v[(idxj*3)];
                 vj[1] = v[(idxj*3)+1];
                 vj[2] = v[(idxj*3)+2];

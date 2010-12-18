@@ -36,6 +36,7 @@ static int ncellx, ncelly, ncellz;
 static float *energy, *d_energy;
 static float3 *d_force, *f_temp, *v_temp, *d_virial;
 
+static int    *d_atom_type;
 static double *d_x;
 static double *d_v;
 static double *d_omega;
