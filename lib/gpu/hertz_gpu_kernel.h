@@ -224,9 +224,6 @@ __global__ void kernel_hertz_cell(
   // compute cell idx from 3D block idx
   int cid = bx + INT_MUL(by, ncellx) + INT_MUL(bz, INT_MUL(ncellx,ncelly));
 
-  __shared__ int typeSh[blockSize];
-  __shared__ float posSh[blockSize*3];
-
   // compute neighbour cell bounds
   int nborz0 = max(bz-1,0), nborz1 = min(bz+1, ncellz-1),
       nbory0 = max(by-1,0), nbory1 = min(by+1, ncelly-1),
@@ -237,16 +234,6 @@ __global__ void kernel_hertz_cell(
     int i = tid + ii*blockSize;
     unsigned int answer_pos = cell_idx[cid*blockSize+i];
 
-    // load current cell atom position and type into sMem
-    for (int j = tid; j < cell_atom[cid]; j += blockSize) {
-      int pid = cid*blockSize + j;
-      float3 pos = cell_list[pid];
-      posSh[j            ] = pos.x;
-      posSh[j+  blockSize] = pos.y;
-      posSh[j+2*blockSize] = pos.z;
-      typeSh[j]            = cell_type[pid];
-    }
-    __syncthreads();
     if (answer_pos < inum) {
       double xi[3]; double xj[3];
       double vi[3]; double vj[3];
@@ -261,11 +248,7 @@ __global__ void kernel_hertz_cell(
       double shear_dummy[3] = {0.0, 0.0, 0.0};
       shear = &shear_dummy[0];
       //temporary
-
-      xi[0] = posSh[i            ];
-      xi[1] = posSh[i+  blockSize];
-      xi[2] = posSh[i+2*blockSize];
-      typei = typeSh[i];
+      typei = 1;
       //load from global memory (TODO: shift to shared)
       //temporary--overwrite using double values---
       xi[0] = x[(answer_pos*3)];
@@ -286,10 +269,7 @@ __global__ void kernel_hertz_cell(
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {
 	      if (j == i) continue;
-        xj[0] = posSh[j            ];
-        xj[1] = posSh[j+  blockSize];
-        xj[2] = posSh[j+2*blockSize];
-        typej = typeSh[j];
+        typej = 1;
 
         int idxj = cell_idx[cid*blockSize+j]; //within same cell as i
         //temporary--overwrite using double values---
@@ -330,22 +310,9 @@ __global__ void kernel_hertz_cell(
                            INT_MUL(nbory,ncellx) +
 	                         INT_MUL(nborz,INT_MUL(ncellx,ncelly));
 
-            // load neighbor cell position and type into smem
-            for (int j = tid; j < cell_atom[cid_nbor]; j += blockSize) {
-              int pid = INT_MUL(cid_nbor,blockSize) + j;
-              float3 pos = cell_list[pid];
-              posSh[j            ] = pos.x;
-              posSh[j+  blockSize] = pos.y;
-              posSh[j+2*blockSize] = pos.z;
-              typeSh[j]           = cell_type[pid];
-            }
-            __syncthreads();
             if (answer_pos < inum) {
               for (int j = 0; j < cell_atom[cid_nbor]; j++) {
-                xj[0] = posSh[j            ];
-                xj[1] = posSh[j+  blockSize];
-                xj[2] = posSh[j+2*blockSize];
-                typej = typeSh[j];
+                typej = 1;
 
                 int idxj = cell_idx[cid_nbor*blockSize+j];
                 //temporary--overwrite using double values---
