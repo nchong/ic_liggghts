@@ -411,6 +411,10 @@ EXTERN double hertz_gpu_cell(
 
   struct hashmap *d_shearmap = c_to_device_shearmap(host_shear, inum);
 
+  struct fshearmap gpu_fshearmap;
+  malloc_device_fshearmap(gpu_fshearmap, inum);
+  copy_into_device_fshearmap(gpu_fshearmap, host_fshearmap);
+
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
     printf("Pre-kernel error: %s.\n", cudaGetErrorString(err));

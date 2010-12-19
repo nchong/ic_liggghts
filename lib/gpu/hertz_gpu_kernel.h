@@ -249,7 +249,6 @@ __global__ void kernel_hertz_cell(
       double shear_dummy[3] = {0.0, 0.0, 0.0};
       shear = &shear_dummy[0];
       //temporary
-      typei = 1;
       //load from global memory (TODO: shift to shared)
       //temporary--overwrite using double values---
       xi[0] = x[(answer_pos*3)];
@@ -262,6 +261,7 @@ __global__ void kernel_hertz_cell(
       omegai[0] = omega[(answer_pos*3)];
       omegai[1] = omega[(answer_pos*3)+1];
       omegai[2] = omega[(answer_pos*3)+2];
+      typei = type[answer_pos];
       radi = radius[answer_pos];
       rmassi = rmass[answer_pos];
       force = &f[answer_pos*3];
@@ -270,7 +270,6 @@ __global__ void kernel_hertz_cell(
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {
 	      if (j == i) continue;
-        typej = 1;
 
         int idxj = cell_idx[cid*blockSize+j]; //within same cell as i
         //temporary--overwrite using double values---
@@ -284,6 +283,7 @@ __global__ void kernel_hertz_cell(
         omegaj[0] = omega[(idxj*3)];
         omegaj[1] = omega[(idxj*3)+1];
         omegaj[2] = omega[(idxj*3)+2];
+        typej = type[idxj];
         radj = radius[idxj];
         rmassj = rmass[idxj];
         struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
@@ -313,7 +313,6 @@ __global__ void kernel_hertz_cell(
 
             if (answer_pos < inum) {
               for (int j = 0; j < cell_atom[cid_nbor]; j++) {
-                typej = 1;
 
                 int idxj = cell_idx[cid_nbor*blockSize+j];
                 //temporary--overwrite using double values---
@@ -327,6 +326,7 @@ __global__ void kernel_hertz_cell(
                 omegaj[0] = omega[(idxj*3)];
                 omegaj[1] = omega[(idxj*3)+1];
                 omegaj[2] = omega[(idxj*3)+2];
+                typej = type[idxj];
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
                 struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
