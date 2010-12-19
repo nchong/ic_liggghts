@@ -39,6 +39,21 @@
 
 bool hertz_gpu_init(double *boxlo, double *boxhi, double cell_len, double skin);
 void hertz_gpu_clear();
+struct fshearmap *create_fshearmap(
+  int inum, /*list->inum*/
+  int *ilist, /*list->ilist*/
+  int *numneigh, /*list->numneigh*/
+  int **firstneigh, /*list->firstneigh*/
+  int **firsttouch, /*listgranhistory->firstneigh*/
+  double **firstshear /*listgranhistory->firstdouble*/);
+void update_from_fshearmap(
+  struct fshearmap *shearmap,
+  int inum, /*list->inum*/
+  int *ilist, /*list->ilist*/
+  int *numneigh, /*list->numneigh*/
+  int **firstneigh, /*list->firstneigh*/
+  int **firsttouch, /*listgranhistory->firstneigh*/
+  double **firstshear /*listgranhistory->firstdouble*/);
 struct hashmap **create_shearmap(
   int inum, /*list->inum*/
   int *ilist, /*list->ilist*/
@@ -73,7 +88,8 @@ double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap **&host_shear, double **host_torque, double **host_force);
+  struct hashmap **&host_shear, struct fshearmap *&host_fshearmap,
+  double **host_torque, double **host_force);
 void hertz_gpu_name(const int gpu_id, const int max_nbors, char * name);
 void hertz_gpu_time();
 double hertz_gpu_bytes();
@@ -166,6 +182,11 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
+    //create cpu fshearmap for device
+    struct fshearmap *fshearmap = create_fshearmap(
+        inum, list->ilist, list->numneigh, list->firstneigh,
+        listgranhistory->firstneigh, listgranhistory->firstdouble);
+
     //call gpu using host-level gpu datastructures
     hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
       atom->x, atom->v, atom->omega,
@@ -180,7 +201,7 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       mpg->coeffFrict,
       force->nktv2p,
 
-      shearmap,
+      shearmap, fshearmap,
       atom->torque,
       atom->f);
 

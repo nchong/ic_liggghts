@@ -29,6 +29,7 @@
 
 #include "cuPrintf.cu"
 #include "hashmap.cu"
+#include "fshearmap.cu"
 
 static NVCTimer timer;
 
@@ -51,6 +52,7 @@ EXTERN bool hertz_gpu_init(
   ncelly = ceil(((boxhi[1] - boxlo[1]) + 2.0*cell_size) / cell_size);
   ncellz = ceil(((boxhi[2] - boxlo[2]) + 2.0*cell_size) / cell_size);
 
+#ifdef VERBOSE
   printf("> hertz_gpu_init\n");
   printf("> cell_size = %f\n", cell_size);
   printf("> boxhi = {%f, %f, %f}; boxlo = {%f, %f, %f}\n", 
@@ -58,6 +60,7 @@ EXTERN bool hertz_gpu_init(
     boxlo[0], boxlo[1], boxlo[2]);
   printf("> ncellx = %d; ncelly = %d; ncellz = %d;\n",
     ncellx, ncelly, ncellz);
+#endif
    
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
 
@@ -71,6 +74,100 @@ EXTERN bool hertz_gpu_init(
 // ---------------------------------------------------------------------------
 EXTERN void hertz_gpu_clear() {
 }
+
+// ---------------------------------------------------------------------------
+EXTERN struct fshearmap *create_fshearmap(
+  //number of atoms (ranged over by ii)
+  int inum, /*list->inum*/
+  //id of atom ii (ranged over by i)
+  int *ilist, /*list->ilist*/
+  //numneigh[i] is the number of neighbor atoms to atom i (ranged over by jj)
+  int *numneigh, /*list->numneigh*/
+  //firstneigh[i][jj] is the id of atom jj (ranged over by j)
+  int **firstneigh, /*list->firstneigh*/
+  //firsttouch[i][jj] = 1, if i and j are in contact
+  //                    0, otherwise
+  int **firsttouch, /*listgranhistory->firstneigh*/
+  //firstshear[i][3*jj] is the shear vector between atoms i and j
+  double **firstshear /*listgranhistory->firstdouble*/) {
+  struct fshearmap *map = malloc_fshearmap(inum);
+
+  for (int ii=0; ii<inum; ii++) {
+    int i = ilist[ii];
+    assert(i < inum);
+    int jnum = numneigh[i];
+    assert(jnum < 32);
+
+    for (int jj = 0; jj<jnum; jj++) {
+      int j = firstneigh[i][jj];
+
+      //TODO: necessary to check firsttouch[i][jj] == 1?
+      double *shear = &firstshear[i][3*jj];
+      insert_fshearmap(map, i, j, shear);
+
+      //symmetric-shear for particle j
+      double nshear[3];
+      nshear[0] = -shear[0];
+      nshear[1] = -shear[1];
+      nshear[2] = -shear[2];
+      insert_fshearmap(map, j, i, nshear);
+    }
+  }
+
+  //paranoid
+  for (int ii=0; ii<inum; ii++) {
+    int i = ilist[ii];
+    int jnum = numneigh[i];
+
+    for (int jj = 0; jj<jnum; jj++) {
+      int j = firstneigh[i][jj];
+
+      double *shear = &firstshear[i][3*jj];
+      double *result = retrieve_fshearmap(map, i, j);
+      assert(result);
+      assert(result[0] == shear[0]);
+      assert(result[1] == shear[1]);
+      assert(result[2] == shear[2]);
+
+      result = retrieve_fshearmap(map, j, i);
+      assert(result);
+      assert(result[0] == -shear[0]);
+      assert(result[1] == -shear[1]);
+      assert(result[2] == -shear[2]);
+    }
+  }
+
+  return map;
+}
+
+EXTERN void update_from_fshearmap(
+  struct fshearmap *map,
+  int inum,
+  int *ilist,
+  int *numneigh,
+  int **firstneigh,
+  int **firsttouch,
+  double **firstshear) {
+  for (int ii=0; ii<inum; ii++) {
+    int i = ilist[ii];
+    int jnum = numneigh[i];
+
+    for (int jj = 0; jj<jnum; jj++) {
+      int j = firstneigh[i][jj];
+
+      double *result = retrieve_fshearmap(map, i, j);
+      assert(result);
+      double *shear = &firstshear[i][3*jj];
+      shear[0] = result[0];
+      shear[1] = result[1];
+      shear[2] = result[2];
+      //TODO: necessary to uncheck firsttouch[i][jj]?
+    }
+  }
+  free_fshearmap(map);
+}
+
+// ---------------------------------------------------------------------------
 
 EXTERN struct hashmap **create_shearmap(
   //number of atoms (ranged over by ii)
@@ -209,7 +306,9 @@ EXTERN double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap**&host_shear, double **host_torque, double **host_force)
+  struct hashmap**&host_shear, 
+  struct fshearmap *&host_fshearmap,
+  double **host_torque, double **host_force)
 {
   static int blockSize = BLOCK_1D;
   static int ncell = ncellx*ncelly*ncellz;
@@ -238,6 +337,7 @@ EXTERN double hertz_gpu_cell(
     cudaMalloc((void**)&d_f, SIZE_2D);
     //shear done later
 
+    cudaMalloc((void**)&d_atom_type, SIZE_1D);
     cudaMalloc((void**)&d_radius, SIZE_1D);
     cudaMalloc((void**)&d_rmass, SIZE_1D);
 
@@ -302,6 +402,7 @@ EXTERN double hertz_gpu_cell(
   cudaMemcpy(d_f, h_f, SIZE_2D, cudaMemcpyHostToDevice);
 
   //just copy across 1d atom data
+  cudaMemcpy(d_atom_type, host_type, SIZE_1D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_rmass, host_rmass, SIZE_1D, cudaMemcpyHostToDevice);
 
@@ -331,7 +432,10 @@ EXTERN double hertz_gpu_cell(
     cell_list_gpu.type,
     cell_list_gpu.natom,
     inum, ncellx, ncelly, ncellz,
-    d_x, d_v, d_omega, d_radius, d_rmass, d_shearmap, d_torque, d_f,
+    d_x, d_v, d_omega, 
+    d_atom_type, d_radius, d_rmass, 
+
+    d_shearmap, d_torque, d_f,
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );

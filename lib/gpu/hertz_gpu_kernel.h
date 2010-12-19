@@ -200,6 +200,7 @@ __global__ void kernel_hertz_cell(
              double *x,
              double *v,
              double *omega,
+             int *type,
              double *radius,
              double *rmass,
              struct hashmap *shearmap,  //] inouts
