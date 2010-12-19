@@ -168,14 +168,14 @@ void PairGranHertzHistory::emit_particle_details(int i, bool do_header=true) {
 
 void PairGranHertzHistory::compute(int eflag, int vflag) {
   static int step = -1; step++;
-  if (step > 26) {
+  if (step > 69) {
     printf("[C] Test run for step %d!\n", step);
   }
 
   PairGranHookeHistory::compute(eflag, vflag);
 
-  if (step > 26) {
+  if (step > 69) {
     emit_results(step, "cpu.out");
   }
-  if (step == 100) exit(0);
+  if (step == 75) exit(0);
 }

@@ -190,6 +190,6 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
     PairGranHertzHistory::emit_results(step, "gpu.out");
-    if (step == 100) exit(0);
+    if (step == 75) exit(0);
   }
 }
