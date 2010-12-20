@@ -64,7 +64,7 @@ EXTERN bool hertz_gpu_init(
    
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
 
-  //timer.init();
+  timer.init();
 
   return true;
 }
@@ -304,6 +304,7 @@ EXTERN double hertz_gpu_cell(
   static bool first_call = true;
   if (first_call) {
     first_call = false;
+    printf("> initialising device datastructures\n");
 
     init_cell_list(cell_list_gpu, nall, ncell, blockSize);
 
@@ -314,7 +315,7 @@ EXTERN double hertz_gpu_cell(
     cudaMalloc((void**)&d_shear, SIZE_2D);
     cudaMalloc((void**)&d_torque, SIZE_2D);
     cudaMalloc((void**)&d_f, SIZE_2D);
-    //shear done later
+    //shear done by malloc_device_fshearmap()
 
     cudaMalloc((void**)&d_atom_type, SIZE_1D);
     cudaMalloc((void**)&d_radius, SIZE_1D);
@@ -345,7 +346,7 @@ EXTERN double hertz_gpu_cell(
     cudaMemcpy(d_coeffFrict, h_coeffFrict, PARAM_SIZE, cudaMemcpyHostToDevice);
   }
 
-  //flatten 2d atom data
+  //flatten incoming 2d atom data
   double *h_x = (double *)malloc(SIZE_2D);
   double *h_v = (double *)malloc(SIZE_2D);
   double *h_omega = (double *)malloc(SIZE_2D);
@@ -360,20 +361,8 @@ EXTERN double hertz_gpu_cell(
       h_f[(i*3)+j] = host_force[i][j];
     }
   }
-  //paranoid
-  for (int i=0; i< nall; i++) {
-    for (int j=0; j<3; j++) {
-      if (h_x[(i*3)+j] != host_x[i][j] ||
-          h_v[(i*3)+j] != host_v[i][j] ||
-          h_omega[(i*3)+j] != host_omega[i][j] ||
-          h_torque[(i*3)+j] != host_torque[i][j] ||
-          h_f[(i*3)+j] != host_force[i][j]) {
-          printf("error: mismatch building host gpu datastructures\n");
-          exit(1);
-      }
-    }
-  }
 
+  //copy across 2d atom data
   cudaMemcpy(d_x, h_x, SIZE_2D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_v, h_v, SIZE_2D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_omega, h_omega, SIZE_2D, cudaMemcpyHostToDevice);
@@ -385,12 +374,12 @@ EXTERN double hertz_gpu_cell(
   cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice);
   cudaMemcpy(d_rmass, host_rmass, SIZE_1D, cudaMemcpyHostToDevice);
 
-  build_cell_list(host_x[0], host_type, cell_list_gpu, 
-	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
-
   struct fshearmap gpu_fshearmap;
   malloc_device_fshearmap(gpu_fshearmap, inum);
   copy_into_device_fshearmap(gpu_fshearmap, host_fshearmap);
+
+  build_cell_list(host_x[0], host_type, cell_list_gpu, 
+	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -398,12 +387,11 @@ EXTERN double hertz_gpu_cell(
     exit(1);
   }
 
-  const int BX=blockSize;
-  dim3 GX(ncellx, ncelly*ncellz);
-
   cudaPrintfInit();
 
-  //timer.start();
+  timer.start();
+  const int BX=blockSize;
+  dim3 GX(ncellx, ncelly*ncellz);
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
     cell_list_gpu.pos,
     cell_list_gpu.idx,
@@ -418,13 +406,12 @@ EXTERN double hertz_gpu_cell(
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );
-  //timer.stop();
-  //timer.add_to_total();
-
-  cudaPrintfDisplay(stderr, true);
-  cudaPrintfEnd();
+  timer.stop();
+  timer.add_to_total();
 
   cudaThreadSynchronize();
+  cudaPrintfDisplay(stderr, true);
+  cudaPrintfEnd();
   err = cudaGetLastError();
   if (err != cudaSuccess) {
     printf("Post-kernel error: %s.\n", cudaGetErrorString(err));
