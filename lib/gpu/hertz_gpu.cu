@@ -266,27 +266,6 @@ EXTERN void update_from_shearmap(
   }
 }
 
-struct hashmap *c_to_device_shearmap(struct hashmap **shearmap, int inum) { 
-  struct hashmap *d_shearmap;
-  ASSERT_NO_CUDA_ERROR(
-    cudaMalloc((void **)&d_shearmap, sizeof(struct hashmap) * inum));
-
-  for (int i=0; i<inum; i++) {
-    struct hashmap *d_hm = c_to_device_hashmap(shearmap[i]);
-    ASSERT_NO_CUDA_ERROR(cudaMemcpy(&d_shearmap[i], d_hm, sizeof(struct hashmap), cudaMemcpyDeviceToDevice));
-  }
-  return d_shearmap;
-}
-
-struct hashmap **device_to_c_shearmap(struct hashmap *d_shearmap, int inum) {
-  struct hashmap **shearmap = 
-    (struct hashmap **)malloc(sizeof(struct hashmap) * inum);
-  for (int i=0; i<inum; i++) {
-    shearmap[i] = device_to_c_hashmap(&d_shearmap[i]);
-  }
-  return shearmap;
-}
-
 EXTERN double hertz_gpu_cell(
   const bool eflag, const bool vflag,
   const int inum, const int nall, const int ago,
@@ -306,7 +285,7 @@ EXTERN double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap**&host_shear, 
+  //struct hashmap**&host_shear, 
   struct fshearmap *&host_fshearmap,
   double **host_torque, double **host_force)
 {
@@ -409,8 +388,6 @@ EXTERN double hertz_gpu_cell(
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
 
-  struct hashmap *d_shearmap = c_to_device_shearmap(host_shear, inum);
-
   struct fshearmap gpu_fshearmap;
   malloc_device_fshearmap(gpu_fshearmap, inum);
   copy_into_device_fshearmap(gpu_fshearmap, host_fshearmap);
@@ -437,7 +414,7 @@ EXTERN double hertz_gpu_cell(
     d_atom_type, d_radius, d_rmass, 
 
     gpu_fshearmap.valid, gpu_fshearmap.key, gpu_fshearmap.shear,
-    d_shearmap, d_torque, d_f,
+    d_torque, d_f,
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );
@@ -455,7 +432,6 @@ EXTERN double hertz_gpu_cell(
   }
 
   //copy back force calculations (shear, torque, force)
-  host_shear = device_to_c_shearmap(d_shearmap ,inum);
   copy_from_device_fshearmap(gpu_fshearmap, host_fshearmap);
   free_device_fshearmap(gpu_fshearmap);
   cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost);

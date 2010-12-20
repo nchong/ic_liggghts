@@ -54,21 +54,6 @@ void update_from_fshearmap(
   int **firstneigh, /*list->firstneigh*/
   int **firsttouch, /*listgranhistory->firstneigh*/
   double **firstshear /*listgranhistory->firstdouble*/);
-struct hashmap **create_shearmap(
-  int inum, /*list->inum*/
-  int *ilist, /*list->ilist*/
-  int *numneigh, /*list->numneigh*/
-  int **firstneigh, /*list->firstneigh*/
-  int **firsttouch, /*listgranhistory->firstneigh*/
-  double **firstshear /*listgranhistory->firstdouble*/);
-void update_from_shearmap(
-  struct hashmap **shearmap,
-  int inum, /*list->inum*/
-  int *ilist, /*list->ilist*/
-  int *numneigh, /*list->numneigh*/
-  int **firstneigh, /*list->firstneigh*/
-  int **firsttouch, /*listgranhistory->firstneigh*/
-  double **firstshear /*listgranhistory->firstdouble*/);
 double hertz_gpu_cell(
   const bool eflag, const bool vflag,
   const int inum, const int nall, const int ago,
@@ -88,7 +73,7 @@ double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  struct hashmap **&host_shear, struct fshearmap *&host_fshearmap,
+  struct fshearmap *&host_fshearmap,
   double **host_torque, double **host_force);
 void hertz_gpu_name(const int gpu_id, const int max_nbors, char * name);
 void hertz_gpu_time();
@@ -178,11 +163,6 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
     int num_atom_types =  mpg->max_type+1;
 
     //create cpu shearmap for device
-    struct hashmap **shearmap = create_shearmap(
-        inum, list->ilist, list->numneigh, list->firstneigh,
-        listgranhistory->firstneigh, listgranhistory->firstdouble);
-
-    //create cpu fshearmap for device
     struct fshearmap *fshearmap = create_fshearmap(
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
@@ -201,16 +181,10 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       mpg->coeffFrict,
       force->nktv2p,
 
-      shearmap, fshearmap,
+      fshearmap,
       atom->torque,
       atom->f);
 
-    //get shear results back from device (USING HASHMAP)
-    //update_from_shearmap(shearmap,
-    //    inum, list->ilist, list->numneigh, list->firstneigh,
-    //    listgranhistory->firstneigh, listgranhistory->firstdouble);
-
-    //(USING FSHEARMAP)
     //get shear results back from device (NB: frees fshearmap)
     update_from_fshearmap(fshearmap,
         inum, list->ilist, list->numneigh, list->firstneigh,
