@@ -320,6 +320,9 @@ __global__ void kernel_hertz_cell(
             dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
             shear, torquei, force);
 
+        fshear[0] = shear[0];
+        fshear[1] = shear[1];
+        fshear[2] = shear[2];
       }
       __syncthreads();
 
@@ -368,6 +371,10 @@ __global__ void kernel_hertz_cell(
                     //passed through (constant)
                     dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
                     shear, torquei, force);
+
+                fshear[0] = shear[0];
+                fshear[1] = shear[1];
+                fshear[2] = shear[2];
               }
             }
           }

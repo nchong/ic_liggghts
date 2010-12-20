@@ -456,6 +456,8 @@ EXTERN double hertz_gpu_cell(
 
   //copy back force calculations (shear, torque, force)
   host_shear = device_to_c_shearmap(d_shearmap ,inum);
+  copy_from_device_fshearmap(gpu_fshearmap, host_fshearmap);
+  free_device_fshearmap(gpu_fshearmap);
   cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost);
   cudaMemcpy(h_f, d_f, SIZE_2D, cudaMemcpyDeviceToHost);
   for (int i=0; i<nall; i++) {
@@ -467,7 +469,6 @@ EXTERN double hertz_gpu_cell(
     host_force[i][1] = h_f[(i*3)+1];
     host_force[i][2] = h_f[(i*3)+2];
   }
-  free_device_fshearmap(gpu_fshearmap);
 
   return 0.0;
 }
