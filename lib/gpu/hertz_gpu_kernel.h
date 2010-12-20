@@ -44,7 +44,7 @@ __device__ void pair_interaction(
     double nktv2p,
 
   //inouts
-    double *shear,
+    double *&shear,
     double *torque,
     double *force) {
   // del is the vector from j to i
