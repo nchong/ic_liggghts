@@ -89,6 +89,8 @@ PairGranHertzHistoryGPU::PairGranHertzHistoryGPU(LAMMPS *lmp) : PairGranHertzHis
 
 PairGranHertzHistoryGPU::~PairGranHertzHistoryGPU()
 {
+  hertz_gpu_time();
+  hertz_gpu_clear();
 }
 
 /* ----------------------------------------------------------------------
@@ -152,12 +154,9 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
   int inum = list->inum;
   static int step = -1; step++;
 
-  if (inum == 0 || step < 70) {
-    //PairGranHertzHistory::compute(eflag, vflag);
+  if (inum == 0) {
     PairGranHookeHistory::compute(eflag, vflag);
   } else {
-    printf("[G] Test run for step %d!\n", step);
-
     inum = atom->nlocal;
     int nall = atom->nlocal + atom->nghost;
     int num_atom_types =  mpg->max_type+1;
@@ -190,7 +189,8 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
-    PairGranHertzHistory::emit_results(step, "gpu.out");
-    if (step == 75) exit(0);
+    if ((step < 100) || (step % 1000 == 0)) {
+      PairGranHertzHistory::emit_results(step, "gpu.out");
+    }
   }
 }

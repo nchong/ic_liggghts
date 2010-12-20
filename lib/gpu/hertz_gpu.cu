@@ -72,6 +72,19 @@ EXTERN bool hertz_gpu_init(
 // Clear memory on host and device
 // ---------------------------------------------------------------------------
 EXTERN void hertz_gpu_clear() {
+  clear_cell_list(cell_list_gpu);
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_x));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_v));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_omega));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_torque));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_f));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_atom_type));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_radius));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_rmass));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_Yeff));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_Geff));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_betaeff));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_coeffFrict));
 }
 
 EXTERN struct fshearmap *create_fshearmap(
@@ -184,7 +197,6 @@ EXTERN double hertz_gpu_cell(
   double nktv2p,
 
   //inouts 
-  //struct hashmap**&host_shear, 
   struct fshearmap *&host_fshearmap,
   double **host_torque, double **host_force)
 {
@@ -205,32 +217,48 @@ EXTERN double hertz_gpu_cell(
     first_call = false;
     printf("> initialising device datastructures\n");
 
-    init_cell_list(cell_list_gpu, nall, ncell, blockSize);
-
     //malloc device data
-    cudaMalloc((void**)&d_x, SIZE_2D);
-    cudaMalloc((void**)&d_v, SIZE_2D);
-    cudaMalloc((void**)&d_omega, SIZE_2D);
-    cudaMalloc((void**)&d_shear, SIZE_2D);
-    cudaMalloc((void**)&d_torque, SIZE_2D);
-    cudaMalloc((void**)&d_f, SIZE_2D);
+    init_cell_list(cell_list_gpu, nall, ncell, blockSize);
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_x, SIZE_2D));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_v, SIZE_2D));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_omega, SIZE_2D));
     //shear done by malloc_device_fshearmap()
-
-    cudaMalloc((void**)&d_atom_type, SIZE_1D);
-    cudaMalloc((void**)&d_radius, SIZE_1D);
-    cudaMalloc((void**)&d_rmass, SIZE_1D);
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_torque, SIZE_2D));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_f, SIZE_2D));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_atom_type, SIZE_1D));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_radius, SIZE_1D));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_rmass, SIZE_1D));
 
     const int PARAM_SIZE = num_atom_types * num_atom_types * sizeof(double);
-    cudaMalloc((void**)&d_Yeff, PARAM_SIZE);
-    cudaMalloc((void**)&d_Geff, PARAM_SIZE);
-    cudaMalloc((void**)&d_betaeff, PARAM_SIZE);
-    cudaMalloc((void**)&d_coeffFrict, PARAM_SIZE);
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_Yeff, PARAM_SIZE));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_Geff, PARAM_SIZE));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_betaeff, PARAM_SIZE));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_coeffFrict, PARAM_SIZE));
+
+    //we flatten atom vectors via these host arrays
+    h_x = (double *)malloc(SIZE_2D);
+    h_v = (double *)malloc(SIZE_2D);
+    h_omega = (double *)malloc(SIZE_2D);
+    h_torque = (double *)malloc(SIZE_2D);
+    h_f = (double *)malloc(SIZE_2D);
+
+    assert(h_x);
+    assert(h_v);
+    assert(h_omega);
+    assert(h_torque);
+    assert(h_f);
 
     //flatten stiffness lookup tables
     double *h_Yeff = (double *)malloc(PARAM_SIZE);
     double *h_Geff = (double *)malloc(PARAM_SIZE);
     double *h_betaeff = (double *)malloc(PARAM_SIZE);
     double *h_coeffFrict = (double *)malloc(PARAM_SIZE);
+
+    assert(h_Yeff);
+    assert(h_Geff);
+    assert(h_betaeff);
+    assert(h_coeffFrict);
+
     for (int i=0; i<num_atom_types; i++) {
       for (int j=0; j<num_atom_types; j++) {
         h_Yeff[i + (j*num_atom_types)] = host_Yeff[i][j];
@@ -239,18 +267,24 @@ EXTERN double hertz_gpu_cell(
         h_coeffFrict[i + (j*num_atom_types)] = host_coeffFrict[i][j];
       }
     }
-    cudaMemcpy(d_Yeff, h_Yeff, PARAM_SIZE, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Geff, h_Geff, PARAM_SIZE, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_betaeff, h_betaeff, PARAM_SIZE, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_coeffFrict, h_coeffFrict, PARAM_SIZE, cudaMemcpyHostToDevice);
+
+    //stiffness coefficients initialised once
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(d_Yeff, h_Yeff, PARAM_SIZE, cudaMemcpyHostToDevice));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(d_Geff, h_Geff, PARAM_SIZE, cudaMemcpyHostToDevice));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(d_betaeff, h_betaeff, PARAM_SIZE, cudaMemcpyHostToDevice));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(d_coeffFrict, h_coeffFrict, PARAM_SIZE, cudaMemcpyHostToDevice));
+
+    free(h_Yeff);
+    free(h_Geff);
+    free(h_betaeff);
+    free(h_coeffFrict);
   }
 
   //flatten incoming 2d atom data
-  double *h_x = (double *)malloc(SIZE_2D);
-  double *h_v = (double *)malloc(SIZE_2D);
-  double *h_omega = (double *)malloc(SIZE_2D);
-  double *h_torque = (double *)malloc(SIZE_2D);
-  double *h_f = (double *)malloc(SIZE_2D);
   for (int i=0; i< nall; i++) {
     for (int j=0; j<3; j++) {
       h_x[(i*3)+j] = host_x[i][j];
@@ -262,16 +296,24 @@ EXTERN double hertz_gpu_cell(
   }
 
   //copy across 2d atom data
-  cudaMemcpy(d_x, h_x, SIZE_2D, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_v, h_v, SIZE_2D, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_omega, h_omega, SIZE_2D, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_torque, h_torque, SIZE_2D, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_f, h_f, SIZE_2D, cudaMemcpyHostToDevice);
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_x, h_x, SIZE_2D, cudaMemcpyHostToDevice));
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_v, h_v, SIZE_2D, cudaMemcpyHostToDevice));
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_omega, h_omega, SIZE_2D, cudaMemcpyHostToDevice));
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_torque, h_torque, SIZE_2D, cudaMemcpyHostToDevice));
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_f, h_f, SIZE_2D, cudaMemcpyHostToDevice));
 
   //just copy across 1d atom data
-  cudaMemcpy(d_atom_type, host_type, SIZE_1D, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_rmass, host_rmass, SIZE_1D, cudaMemcpyHostToDevice);
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_atom_type, host_type, SIZE_1D, cudaMemcpyHostToDevice));
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice));
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(d_rmass, host_rmass, SIZE_1D, cudaMemcpyHostToDevice));
 
   struct fshearmap gpu_fshearmap;
   malloc_device_fshearmap(gpu_fshearmap, inum);
@@ -319,9 +361,10 @@ EXTERN double hertz_gpu_cell(
 
   //copy back force calculations (shear, torque, force)
   copy_from_device_fshearmap(gpu_fshearmap, host_fshearmap);
-  free_device_fshearmap(gpu_fshearmap);
-  cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_f, d_f, SIZE_2D, cudaMemcpyDeviceToHost);
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(h_torque, d_torque, SIZE_2D, cudaMemcpyDeviceToHost));
+  ASSERT_NO_CUDA_ERROR(
+    cudaMemcpy(h_f, d_f, SIZE_2D, cudaMemcpyDeviceToHost));
   for (int i=0; i<nall; i++) {
     host_torque[i][0] = h_torque[(i*3)];
     host_torque[i][1] = h_torque[(i*3)+1];
@@ -331,6 +374,11 @@ EXTERN double hertz_gpu_cell(
     host_force[i][1] = h_f[(i*3)+1];
     host_force[i][2] = h_f[(i*3)+2];
   }
+
+  //now free all malloc'ed data
+  free_device_fshearmap(gpu_fshearmap);
+  //gpu shearmap freed by call to update_from_fshearmap
+  //all other atom data is static
 
   return 0.0;
 }

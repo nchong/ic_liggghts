@@ -47,9 +47,15 @@ static double *d_Geff;
 static double *d_betaeff;
 static double *d_coeffFrict;
 
-static double *d_shear;
+//shear done by malloc_device_fshearmap()
 static double *d_torque;
 static double *d_f;
+
+static double *h_x;
+static double *h_v;
+static double *h_omega;
+static double *h_torque;
+static double *h_f;
 
 typedef struct {
   float3 *pos;
