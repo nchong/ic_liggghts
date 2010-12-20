@@ -205,8 +205,14 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       atom->torque,
       atom->f);
 
-    //get shear results back from device
-    update_from_shearmap(shearmap,
+    //get shear results back from device (USING HASHMAP)
+    //update_from_shearmap(shearmap,
+    //    inum, list->ilist, list->numneigh, list->firstneigh,
+    //    listgranhistory->firstneigh, listgranhistory->firstdouble);
+
+    //(USING FSHEARMAP)
+    //get shear results back from device (NB: frees fshearmap)
+    update_from_fshearmap(fshearmap,
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
 
