@@ -45,7 +45,7 @@ __device__ void pair_interaction(
     double nktv2p,
 
   //inouts
-    double *shear,
+    double *&shear,
     double *torque,
     double *force) {
 
@@ -308,7 +308,7 @@ __global__ void kernel_hertz_cell(
 
         CHECK_SHEAR;
 
-        if (lookup == NULL) {
+        if (fshear == NULL) {
           continue; //on miss, so go onto next j
         }
         shear = lookup->shear;
@@ -318,11 +318,11 @@ __global__ void kernel_hertz_cell(
             radi, radj, rmassi, rmassj, 0, 0, typei, typej,
             //passed through (constant)
             dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
-            shear, torquei, force);
+            fshear, torquei, force);
 
-        fshear[0] = shear[0];
-        fshear[1] = shear[1];
-        fshear[2] = shear[2];
+        shear[0] = fshear[0];
+        shear[1] = fshear[1];
+        shear[2] = fshear[2];
       }
       __syncthreads();
 
@@ -360,7 +360,7 @@ __global__ void kernel_hertz_cell(
 
                 CHECK_SHEAR;
 
-                if (lookup == NULL) {
+                if (fshear == NULL) {
                   continue; //on miss, so go onto next j
                 }
                 shear = lookup->shear;
@@ -370,11 +370,11 @@ __global__ void kernel_hertz_cell(
                     radi, radj, rmassi, rmassj, 0, 0, typei, typej,
                     //passed through (constant)
                     dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
-                    shear, torquei, force);
+                    fshear, torquei, force);
 
-                fshear[0] = shear[0];
-                fshear[1] = shear[1];
-                fshear[2] = shear[2];
+                shear[0] = fshear[0];
+                shear[1] = fshear[1];
+                shear[2] = fshear[2];
               }
             }
           }
