@@ -22,6 +22,7 @@
 
 #include "cuPrintf.cu"
 #include "hashmap.cu"
+#include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
 __device__ void pair_interaction(
@@ -203,6 +204,9 @@ __global__ void kernel_hertz_cell(
              int *type,
              double *radius,
              double *rmass,
+             bool *fshearmap_valid,
+             int *fshearmap_key,
+             double *fshearmap_shear,   //] inouts
              struct hashmap *shearmap,  //] inouts
              double *torque,            //]
              double *f,                 //]
@@ -287,6 +291,23 @@ __global__ void kernel_hertz_cell(
         radj = radius[idxj];
         rmassj = rmass[idxj];
         struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
+        double *fshear = cuda_retrieve_fshearmap(
+          fshearmap_valid, fshearmap_key, fshearmap_shear,
+          answer_pos, idxj);
+
+#define CHECK_SHEAR                                                 \
+  {                                                                 \
+    if (lookup == NULL && fshear != NULL) cuPrintf("(1) mismatch"); \
+    if (lookup != NULL && fshear == NULL) cuPrintf("(2) mismatch"); \
+    if (lookup != NULL && fshear != NULL) {                         \
+      if (lookup->shear[0] != fshear[0])  cuPrintf("(3) mismatch"); \
+      if (lookup->shear[1] != fshear[1])  cuPrintf("(4) mismatch"); \
+      if (lookup->shear[2] != fshear[2])  cuPrintf("(5) mismatch"); \
+    }                                                               \
+  } while(0);
+
+        CHECK_SHEAR;
+
         if (lookup == NULL) {
           continue; //on miss, so go onto next j
         }
@@ -330,6 +351,12 @@ __global__ void kernel_hertz_cell(
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
                 struct entry *lookup = cuda_retrieve_hashmap(&shearmap[answer_pos], idxj);
+                double *fshear = cuda_retrieve_fshearmap(
+                  fshearmap_valid, fshearmap_key, fshearmap_shear,
+                  answer_pos, idxj);
+
+                CHECK_SHEAR;
+
                 if (lookup == NULL) {
                   continue; //on miss, so go onto next j
                 }

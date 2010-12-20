@@ -424,10 +424,7 @@ EXTERN double hertz_gpu_cell(
   const int BX=blockSize;
   dim3 GX(ncellx, ncelly*ncellz);
 
-#ifdef VERBOSE
-  printf("kernel<<<BX=%d, GX=(%d,%d)>>>\n", BX, ncellx, ncelly*ncellz);
-  cudaPrintfInit(0x1<<30);
-#endif
+  cudaPrintfInit();
 
   //timer.start();
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
@@ -439,6 +436,7 @@ EXTERN double hertz_gpu_cell(
     d_x, d_v, d_omega, 
     d_atom_type, d_radius, d_rmass, 
 
+    gpu_fshearmap.valid, gpu_fshearmap.key, gpu_fshearmap.shear,
     d_shearmap, d_torque, d_f,
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
@@ -446,12 +444,8 @@ EXTERN double hertz_gpu_cell(
   //timer.stop();
   //timer.add_to_total();
 
-#ifdef VERBOSE
-  cudaPrintfDisplay(stdout, true);
-  //FILE *ofile = fopen("kernel_list.txt", "w");
-  //cudaPrintfDisplay(ofile, true);
+  cudaPrintfDisplay(stderr, true);
   cudaPrintfEnd();
-#endif
 
   cudaThreadSynchronize();
   err = cudaGetLastError();
@@ -473,6 +467,7 @@ EXTERN double hertz_gpu_cell(
     host_force[i][1] = h_f[(i*3)+1];
     host_force[i][2] = h_f[(i*3)+2];
   }
+  free_device_fshearmap(gpu_fshearmap);
 
   return 0.0;
 }
