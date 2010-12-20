@@ -28,7 +28,6 @@
 #include "hertz_gpu_kernel.h"
 
 #include "cuPrintf.cu"
-#include "hashmap.cu"
 #include "fshearmap.cu"
 
 static NVCTimer timer;
@@ -75,7 +74,6 @@ EXTERN bool hertz_gpu_init(
 EXTERN void hertz_gpu_clear() {
 }
 
-// ---------------------------------------------------------------------------
 EXTERN struct fshearmap *create_fshearmap(
   //number of atoms (ranged over by ii)
   int inum, /*list->inum*/
@@ -165,105 +163,6 @@ EXTERN void update_from_fshearmap(
     }
   }
   free_fshearmap(map);
-}
-
-// ---------------------------------------------------------------------------
-
-EXTERN struct hashmap **create_shearmap(
-  //number of atoms (ranged over by ii)
-  int inum, /*list->inum*/
-  //id of atom ii (ranged over by i)
-  int *ilist, /*list->ilist*/
-  //numneigh[i] is the number of neighbor atoms to atom i (ranged over by jj)
-  int *numneigh, /*list->numneigh*/
-  //firstneigh[i][jj] is the id of atom jj (ranged over by j)
-  int **firstneigh, /*list->firstneigh*/
-  //firsttouch[i][jj] = 1, if i and j are in contact
-  //                    0, otherwise
-  int **firsttouch, /*listgranhistory->firstneigh*/
-  //firstshear[i][3*jj] is the shear vector between atoms i and j
-  double **firstshear /*listgranhistory->firstdouble*/) {
-
-  //shearmap[i] is a hashmap for atoms in contact with atom i
-  struct hashmap **shearmap;
-  shearmap = (struct hashmap **)malloc(sizeof(struct hashmap) * inum);
-
-  //create empty hashmaps
-  for (int i=0; i<inum; i++) {
-    shearmap[i] = create_hashmap(32);
-  }
-  for (int ii=0; ii<inum; ii++) {
-    int i = ilist[ii];
-    int jnum = numneigh[i];
-    assert(jnum < 32);
-
-    for (int jj = 0; jj<jnum; jj++) {
-      int j = firstneigh[i][jj];
-
-      //TODO: necessary to check firsttouch[i][jj] == 1?
-      double *shear = &firstshear[i][3*jj];
-      insert_hashmap(shearmap[i], j, shear);
-
-      //symmetric-shear for particle j
-      double nshear[3];
-      nshear[0] = -shear[0];
-      nshear[1] = -shear[1];
-      nshear[2] = -shear[2];
-      insert_hashmap(shearmap[j], i, nshear);
-    }
-  }
-
-  //paranoid
-  for (int ii=0; ii<inum; ii++) {
-    int i = ilist[ii];
-    int jnum = numneigh[i];
-
-    struct hashmap *hm = create_hashmap(32);
-    for (int jj = 0; jj<jnum; jj++) {
-      int j = firstneigh[i][jj];
-      double *shear = &firstshear[i][3*jj];
-
-      struct entry *result = retrieve_hashmap(shearmap[i], j);
-      assert(result);
-      assert(result->shear[0] == shear[0]);
-      assert(result->shear[1] == shear[1]);
-      assert(result->shear[2] == shear[2]);
-
-      result = retrieve_hashmap(shearmap[j], i);
-      assert(result);
-      assert(result->shear[0] == -shear[0]);
-      assert(result->shear[1] == -shear[1]);
-      assert(result->shear[2] == -shear[2]);
-    }
-  }
-
-  return shearmap;
-}
-
-EXTERN void update_from_shearmap(
-  struct hashmap **shearmap,
-  int inum,
-  int *ilist,
-  int *numneigh,
-  int **firstneigh,
-  int **firsttouch,
-  double **firstshear) {
-
-  for (int ii=0; ii<inum; ii++) {
-    int i = ilist[ii];
-    int jnum = numneigh[i];
-
-    for (int jj = 0; jj<jnum; jj++) {
-      int j = firstneigh[i][jj];
-
-      struct entry *result = retrieve_hashmap(shearmap[i], j);
-      double *shear = &firstshear[i][3*jj];
-      shear[0] = result->shear[0];
-      shear[1] = result->shear[1];
-      shear[2] = result->shear[2];
-      //TODO: necessary to uncheck firsttouch[i][jj]?
-    }
-  }
 }
 
 EXTERN double hertz_gpu_cell(

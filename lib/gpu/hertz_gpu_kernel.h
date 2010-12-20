@@ -21,7 +21,6 @@
 #define HERTZ_GPU_KERNEL
 
 #include "cuPrintf.cu"
-#include "hashmap.cu"
 #include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
