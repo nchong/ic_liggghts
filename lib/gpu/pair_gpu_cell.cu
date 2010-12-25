@@ -23,6 +23,7 @@
 #endif // _GLIBCXX_ATOMIC_BUILTINS
 #endif // __APPLE__
 
+#include "common.cuh"
 #include <assert.h>
 #include "lj_gpu_memory.h"
 #include "pair_gpu_cell.h"
@@ -376,7 +377,8 @@ static int *d_overflow, *d_rebuild;
 void init_cell_list(cell_list &cell_list_gpu, 
 		   const int nall,
 		   const int ncell, 
-		   const int buffer)
+		   const int buffer,
+       bool is_hertz)
 {
   cudaMalloc((void**)&(cell_list_gpu.pos), ncell*buffer*sizeof(float3));
   cudaMalloc((void**)&(cell_list_gpu.idx),  ncell*buffer*sizeof(unsigned int));
@@ -391,6 +393,12 @@ void init_cell_list(cell_list &cell_list_gpu,
 
   cudaMemset(cell_list_gpu.natom, 0, ncell*sizeof(int));
   cudaMemset(cell_list_gpu.pos, 0, ncell*buffer*sizeof(float3));
+
+  if (is_hertz) {
+    const int DOUBLE3_TABLE = ncell*buffer*sizeof(double3);
+    ASSERT_NO_CUDA_ERROR(
+      cudaMalloc((void**)&(cell_list_gpu.x), DOUBLE3_TABLE));
+  }
 }
 
 void clear_cell_list(cell_list &cell_list_gpu)
@@ -411,7 +419,9 @@ void clear_cell_list(cell_list &cell_list_gpu)
 void build_cell_list(double *atom_pos, int *atom_type, 
 		     cell_list &cell_list_gpu, 
 		     const int ncell, const int ncellx, const int ncelly, const int ncellz, 
-		     const int buffer, const int inum, const int nall, const int ago)
+		     const int buffer, const int inum, const int nall, const int ago,
+         bool is_hertz,
+         double *d_x)
 {
 
   cudaError_t err;				     
@@ -491,5 +501,46 @@ void build_cell_list(double *atom_pos, int *atom_type,
     err = cudaGetLastError();
     assert(err == cudaSuccess);
   }
+  if (is_hertz) {
+    assert(d_x);
+    dim3 grid(ncellx, ncelly*ncellz);
+    hertz_reorder_list<<<grid,buffer>>>(
+      ncellx, ncelly, ncellz,
+      cell_list_gpu.natom,
+      cell_list_gpu.idx,
+      d_x, cell_list_gpu.x
+    );
+  }
 
+}
+
+// --------------------------------------------------------------------------
+// hertz-specific
+// --------------------------------------------------------------------------
+
+__global__ void hertz_reorder_list(
+  const int ncellx,
+  const int ncelly,
+  const int ncellz,
+  int *cell_atom, 
+  unsigned int *cell_idx,
+  double *d_x, double3 *cell_x) {
+
+  // calculate 3D block idx from 2d block
+  int bx = blockIdx.x;
+  int by = blockIdx.y % ncelly;
+  int bz = blockIdx.y / ncelly;
+
+  int tid = threadIdx.x;
+
+  // compute cell idx from 3D block idx
+  int cid = bx + INT_MUL(by, ncellx) + INT_MUL(bz, INT_MUL(ncellx,ncelly));
+  int pbase = INT_MUL(cid,blockDim.x); // atom position id in cell list
+  for (int i = tid; i < cell_atom[cid]; i += blockDim.x) {
+    int pid = pbase + i;
+    int idx = cell_idx[pid];
+    cell_x[pid].x = d_x[(idx*3)];
+    cell_x[pid].y = d_x[(idx*3)+1];
+    cell_x[pid].z = d_x[(idx*3)+2];
+  }
 }

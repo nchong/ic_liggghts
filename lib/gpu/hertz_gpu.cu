@@ -218,7 +218,7 @@ EXTERN double hertz_gpu_cell(
     printf("> initialising device datastructures\n");
 
     //malloc device data
-    init_cell_list(cell_list_gpu, nall, ncell, blockSize);
+    init_cell_list(cell_list_gpu, nall, ncell, blockSize, true);
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_x, SIZE_2D));
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_v, SIZE_2D));
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_omega, SIZE_2D));
@@ -320,7 +320,8 @@ EXTERN double hertz_gpu_cell(
   copy_into_device_fshearmap(gpu_fshearmap, host_fshearmap);
 
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
-	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago);
+	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago,
+    true, d_x);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -339,6 +340,8 @@ EXTERN double hertz_gpu_cell(
     cell_list_gpu.type,
     cell_list_gpu.natom,
     inum, ncellx, ncelly, ncellz,
+    cell_list_gpu.x,
+
     d_x, d_v, d_omega, 
     d_atom_type, d_radius, d_rmass, 
 

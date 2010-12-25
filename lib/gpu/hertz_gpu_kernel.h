@@ -24,6 +24,15 @@
 #include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
+#define PARANOID_CHECK
+
+#define ASSERT_EQUAL(x, y, fmt)                                     \
+  do {                                                              \
+    if ((x) != (y)) {                                               \
+      cuPrintf("ERROR " #x "=" fmt "; " #y "=" fmt "\n", (x), (y)); \
+    }                                                               \
+  } while(0);
+
 __device__ void pair_interaction(
   //inputs
     double *xi, double *xj,           //position
@@ -199,6 +208,8 @@ __global__ void kernel_hertz_cell(
 			       int *cell_type, int *cell_atom,
 			       const int inum,
 			       const int ncellx, const int ncelly, const int ncellz,
+             //loaded into shared memory
+             double3 *cell_x,
              //passed in global memory
              double *x,
              double *v,
@@ -220,6 +231,9 @@ __global__ void kernel_hertz_cell(
              double *coeffFrict,
              double nktv2p)
 {
+  __shared__ int typeSh[blockSize];
+  __shared__ double posSh[blockSize*3];
+
   // calculate 3D block idx from 2d block
   int bx = blockIdx.x;
   int by = blockIdx.y % ncelly;
@@ -240,6 +254,16 @@ __global__ void kernel_hertz_cell(
     int i = tid + ii*blockSize;
     unsigned int answer_pos = cell_idx[cid*blockSize+i];
 
+    // load current cell atom position and type into sMem
+    for (int j = tid; j < cell_atom[cid]; j += blockSize) {
+      int pid = cid*blockSize + j;
+      double3 pos = cell_x[pid];
+      posSh[j            ] = pos.x;
+      posSh[j+  blockSize] = pos.y;
+      posSh[j+2*blockSize] = pos.z;
+      typeSh[j]            = cell_type[pid];
+    }
+    __syncthreads();
     if (answer_pos < inum) {
       double xi[3]; double xj[3];
       double vi[3]; double vj[3];
@@ -264,6 +288,13 @@ __global__ void kernel_hertz_cell(
       rmassi = rmass[answer_pos];
       force = &f[answer_pos*3];
       torquei = &torque[answer_pos*3];
+
+#ifdef PARANOID_CHECK
+      ASSERT_EQUAL(xi[0], posSh[i], "%.16f");
+      ASSERT_EQUAL(xi[1], posSh[i + blockSize], "%.16f");
+      ASSERT_EQUAL(xi[2], posSh[i+2*blockSize], "%.16f");
+      ASSERT_EQUAL(typei, typeSh[i], "%d");
+#endif
 
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {

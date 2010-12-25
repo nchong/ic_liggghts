@@ -62,6 +62,12 @@ typedef struct {
   unsigned int *idx;
   int *type;
   int *natom;
+
+  double3 *x;
+  double3 *v;
+  double3 *omega;
+  double *rad;
+  double *rmass;
 } cell_list;
 
 static cell_list cell_list_gpu;
@@ -88,13 +94,16 @@ void init_cell_list_const(double cell_size, double skin,
 void init_cell_list(cell_list &cell_list_gpu, 
 		   const int nall,
 		   const int ncell, 
-		   const int buffer);
+		   const int buffer, bool is_hertz=false);
 
 void build_cell_list(double *atom_pos, int *atom_type, 
 		    cell_list &cell_list_gpu, 
 		    const int ncell, const int ncellx, const int ncelly, const int ncellz, 
-		    const int buffer, const int inum, const int nall, const int ago);
+		    const int buffer, const int inum, const int nall, const int ago,
+        bool is_hertz=false, double *d_x=NULL);
 
 void clear_cell_list(cell_list &cell_list_gpu);
+
+__global__ void hertz_reorder_list(const int, const int, const int, int *, unsigned int*, double *, double3 *);
 
 #endif
