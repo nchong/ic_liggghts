@@ -66,7 +66,7 @@ typedef struct {
   double3 *x;
   double3 *v;
   double3 *omega;
-  double *rad;
+  double *radius;
   double *rmass;
 } cell_list;
 
@@ -100,10 +100,21 @@ void build_cell_list(double *atom_pos, int *atom_type,
 		    cell_list &cell_list_gpu, 
 		    const int ncell, const int ncellx, const int ncelly, const int ncellz, 
 		    const int buffer, const int inum, const int nall, const int ago,
-        bool is_hertz=false, double *d_x=NULL);
+        bool is_hertz=false,
+        double *d_x=NULL, double *d_v=NULL, double *d_omega=NULL,
+        double *d_radius=NULL, double *d_rmass=NULL);
 
 void clear_cell_list(cell_list &cell_list_gpu);
 
-__global__ void hertz_reorder_list(const int, const int, const int, int *, unsigned int*, double *, double3 *);
+__global__ void hertz_reorder_list(
+    const int ncellx, const int ncelly, const int ncellz,
+    int *cell_atom,
+    unsigned int*cell_idx,
+    double *d_x, double3 *cell_x,
+    double *d_v, double3 *cell_v,
+    double *d_omega, double3 *cell_omega,
+    double *d_radius, double *cell_radius,
+    double *d_rmass, double *cell_rmass
+    );
 
 #endif

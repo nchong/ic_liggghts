@@ -395,9 +395,18 @@ void init_cell_list(cell_list &cell_list_gpu,
   cudaMemset(cell_list_gpu.pos, 0, ncell*buffer*sizeof(float3));
 
   if (is_hertz) {
+    const int DOUBLE_TABLE = ncell*buffer*sizeof(double);
     const int DOUBLE3_TABLE = ncell*buffer*sizeof(double3);
     ASSERT_NO_CUDA_ERROR(
       cudaMalloc((void**)&(cell_list_gpu.x), DOUBLE3_TABLE));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMalloc((void**)&(cell_list_gpu.v), DOUBLE3_TABLE));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMalloc((void**)&(cell_list_gpu.omega), DOUBLE3_TABLE));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMalloc((void**)&(cell_list_gpu.radius), DOUBLE_TABLE));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMalloc((void**)&(cell_list_gpu.rmass), DOUBLE_TABLE));
   }
 }
 
@@ -421,7 +430,8 @@ void build_cell_list(double *atom_pos, int *atom_type,
 		     const int ncell, const int ncellx, const int ncelly, const int ncellz, 
 		     const int buffer, const int inum, const int nall, const int ago,
          bool is_hertz,
-         double *d_x)
+         double *d_x, double *d_v, double *d_omega,
+         double *d_radius, double *d_rmass)
 {
 
   cudaError_t err;				     
@@ -502,14 +512,25 @@ void build_cell_list(double *atom_pos, int *atom_type,
     assert(err == cudaSuccess);
   }
   if (is_hertz) {
-    assert(d_x);
+    assert(d_x); assert(d_v); assert(d_omega);
+    assert(d_radius); assert(d_rmass);
+
+    err = cudaGetLastError();
+    assert(err == cudaSuccess);
     dim3 grid(ncellx, ncelly*ncellz);
     hertz_reorder_list<<<grid,buffer>>>(
       ncellx, ncelly, ncellz,
       cell_list_gpu.natom,
       cell_list_gpu.idx,
-      d_x, cell_list_gpu.x
+      d_x, cell_list_gpu.x,
+      d_v, cell_list_gpu.v,
+      d_omega, cell_list_gpu.omega,
+      d_radius, cell_list_gpu.radius,
+      d_rmass, cell_list_gpu.rmass
     );
+    cudaThreadSynchronize();
+    err = cudaGetLastError();
+    assert(err == cudaSuccess);
   }
 
 }
@@ -522,9 +543,14 @@ __global__ void hertz_reorder_list(
   const int ncellx,
   const int ncelly,
   const int ncellz,
-  int *cell_atom, 
+  int *cell_atom,
   unsigned int *cell_idx,
-  double *d_x, double3 *cell_x) {
+  double *d_x, double3 *cell_x,
+  double *d_v, double3 *cell_v,
+  double *d_omega, double3 *cell_omega,
+  double *d_radius, double *cell_radius,
+  double *d_rmass, double *cell_rmass
+  ) {
 
   // calculate 3D block idx from 2d block
   int bx = blockIdx.x;
@@ -542,5 +568,13 @@ __global__ void hertz_reorder_list(
     cell_x[pid].x = d_x[(idx*3)];
     cell_x[pid].y = d_x[(idx*3)+1];
     cell_x[pid].z = d_x[(idx*3)+2];
+    cell_v[pid].x = d_v[(idx*3)];
+    cell_v[pid].y = d_v[(idx*3)+1];
+    cell_v[pid].z = d_v[(idx*3)+2];
+    cell_omega[pid].x = d_omega[(idx*3)];
+    cell_omega[pid].y = d_omega[(idx*3)+1];
+    cell_omega[pid].z = d_omega[(idx*3)+2];
+    cell_radius[pid] = d_radius[idx];
+    cell_rmass[pid] = d_rmass[idx];
   }
 }

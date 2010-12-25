@@ -321,7 +321,7 @@ EXTERN double hertz_gpu_cell(
 
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago,
-    true, d_x);
+    true, d_x, d_v, d_omega, d_radius, d_rmass);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -341,6 +341,10 @@ EXTERN double hertz_gpu_cell(
     cell_list_gpu.natom,
     inum, ncellx, ncelly, ncellz,
     cell_list_gpu.x,
+    cell_list_gpu.v,
+    cell_list_gpu.omega,
+    cell_list_gpu.radius,
+    cell_list_gpu.rmass,
 
     d_x, d_v, d_omega, 
     d_atom_type, d_radius, d_rmass, 
