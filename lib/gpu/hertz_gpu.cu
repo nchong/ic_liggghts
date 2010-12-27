@@ -178,6 +178,7 @@ EXTERN void update_from_fshearmap(
   free_fshearmap(map);
 }
 
+static int *d_panic;
 EXTERN double hertz_gpu_cell(
   const bool eflag, const bool vflag,
   const int inum, const int nall, const int ago,
@@ -282,6 +283,8 @@ EXTERN double hertz_gpu_cell(
     free(h_Geff);
     free(h_betaeff);
     free(h_coeffFrict);
+
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_panic, sizeof(int)));
   }
 
   //flatten incoming 2d atom data
@@ -323,18 +326,97 @@ EXTERN double hertz_gpu_cell(
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago,
     true, d_x, d_v, d_omega, d_radius, d_rmass);
 
+  do {
+    const int incell       = ncell          *sizeof(int);
+    const int incellblock  = ncell*blockSize*sizeof(int);
+    const int dncellblock  = ncell*blockSize*sizeof(double);
+    const int d3ncellblock = ncell*blockSize*sizeof(double3);
+    int     *h_idx   = (int *)    malloc(incellblock);
+    int     *h_natom = (int *)    malloc(incell);
+    double3 *h_pos   = (double3 *)malloc(d3ncellblock);
+    double3 *h_vel   = (double3 *)malloc(d3ncellblock);
+    double3 *h_omg   = (double3 *)malloc(d3ncellblock);
+    double  *h_rad   = (double *) malloc(dncellblock);
+    double  *h_rms   = (double *) malloc(dncellblock);
+    int     *h_typ   = (int *)    malloc(incellblock);
+    assert(h_idx);
+    assert(h_natom);
+    assert(h_pos);
+    assert(h_vel);
+    assert(h_omg);
+    assert(h_rad);
+    assert(h_rms);
+    assert(h_typ);
+
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_idx, cell_list_gpu.idx, incellblock, cudaMemcpyDeviceToHost));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_natom, cell_list_gpu.natom, incell, cudaMemcpyDeviceToHost));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_pos, cell_list_gpu.x, d3ncellblock, cudaMemcpyDeviceToHost));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_vel, cell_list_gpu.v, d3ncellblock, cudaMemcpyDeviceToHost));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_omg, cell_list_gpu.omega, d3ncellblock, cudaMemcpyDeviceToHost));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_rad, cell_list_gpu.radius, dncellblock, cudaMemcpyDeviceToHost));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_rms, cell_list_gpu.rmass, dncellblock, cudaMemcpyDeviceToHost));
+    ASSERT_NO_CUDA_ERROR(
+      cudaMemcpy(h_typ, cell_list_gpu.type, incellblock, cudaMemcpyDeviceToHost));
+
+    //printf("Testing cell_list_gpu consistency...");
+    for (int cid=0; cid<ncell; cid++) {
+      for (int j=0; j<h_natom[cid]; j++) {
+        int pid = cid*blockSize + j;
+        int idx = h_idx[pid];
+        double3 pos = h_pos[pid];
+        double3 vel = h_vel[pid];
+        double3 omg = h_omg[pid];
+        double  rad = h_rad[pid];
+        double  rms = h_rms[pid];
+        int     typ = h_typ[pid];
+        assert(idx < nall);
+        assert(pos.x == host_x[idx][0]);
+        assert(pos.y == host_x[idx][1]);
+        assert(pos.z == host_x[idx][2]);
+        assert(vel.x == host_v[idx][0]);
+        assert(vel.y == host_v[idx][1]);
+        assert(vel.z == host_v[idx][2]);
+        assert(omg.x == host_omega[idx][0]);
+        assert(omg.y == host_omega[idx][1]);
+        assert(omg.z == host_omega[idx][2]);
+        assert(rad   == host_radius[idx]);
+        assert(rms   == host_rmass[idx]);
+        assert(typ   == host_type[idx]);
+      }
+    }
+    //printf("done\n");
+
+    free(h_idx);
+    free(h_natom);
+    free(h_pos);
+    free(h_vel);
+    free(h_omg);
+    free(h_rad);
+    free(h_rms);
+    free(h_typ);
+  } while(0);
+
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
     printf("Pre-kernel error: %s.\n", cudaGetErrorString(err));
     exit(1);
   }
 
+  ASSERT_NO_CUDA_ERROR(cudaMemset(d_panic, 0, sizeof(int)));
   cudaPrintfInit();
 
   timer.start();
   const int BX=blockSize;
   dim3 GX(ncellx, ncelly*ncellz);
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
+    d_panic,
     cell_list_gpu.pos,
     cell_list_gpu.idx,
     cell_list_gpu.type,
@@ -363,6 +445,13 @@ EXTERN double hertz_gpu_cell(
   err = cudaGetLastError();
   if (err != cudaSuccess) {
     printf("Post-kernel error: %s.\n", cudaGetErrorString(err));
+    exit(1);
+  }
+
+  int panic = 0;
+  cudaMemcpy(&panic, d_panic, sizeof(int), cudaMemcpyDeviceToHost);
+  if (panic) {
+    printf("Post-kernel panic.\n");
     exit(1);
   }
 

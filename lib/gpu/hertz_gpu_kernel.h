@@ -27,55 +27,115 @@
 #define PARANOID_CHECK
 
 #ifdef PARANOID_CHECK
-  #define ASSERT_EQUAL(x, y, fmt)                                     \
-    do {                                                              \
-      if ((x) != (y)) {                                               \
-        cuPrintf("ERROR " #x "=" fmt "; " #y "=" fmt "\n", (x), (y)); \
-      }                                                               \
+  #define ASSERT_EQUAL(x, y, fmt, tag)                                    \
+    do {                                                                  \
+      if ((x) != (y)) {                                                   \
+        cuPrintf(tag "ERROR " #x "=" fmt "; " #y "=" fmt "\n", (x), (y)); \
+        *panic = 1;                                                       \
+      }                                                                   \
     } while(0);
 
-  #define CHECK_PARTICLE(ij)                                          \
-    do {                                                              \
-      ASSERT_EQUAL(x##ij[0], posSh[ij], "%.16f");                     \
-      ASSERT_EQUAL(x##ij[1], posSh[ij + blockSize], "%.16f");         \
-      ASSERT_EQUAL(x##ij[2], posSh[ij+2*blockSize], "%.16f");         \
-      ASSERT_EQUAL(v##ij[0], velSh[ij], "%.16f");                     \
-      ASSERT_EQUAL(v##ij[1], velSh[ij + blockSize], "%.16f");         \
-      ASSERT_EQUAL(v##ij[2], velSh[ij+2*blockSize], "%.16f");         \
-      ASSERT_EQUAL(omega##ij[0], omegaSh[ij], "%.16f");               \
-      ASSERT_EQUAL(omega##ij[1], omegaSh[ij + blockSize], "%.16f");   \
-      ASSERT_EQUAL(omega##ij[2], omegaSh[ij+2*blockSize], "%.16f");   \
-      ASSERT_EQUAL(rad##ij, radiusSh[ij], "%d");                      \
-      ASSERT_EQUAL(rmass##ij, rmassSh[ij], "%d");                     \
-      ASSERT_EQUAL(type##ij, typeSh[ij], "%d");                       \
+  #define CHECK_PARTICLE(ij, tag)                                         \
+    do {                                                                  \
+      ASSERT_EQUAL(x##ij[0], posSh[ij], "%.16f", tag);                    \
+      ASSERT_EQUAL(x##ij[1], posSh[ij + blockSize], "%.16f", tag);        \
+      ASSERT_EQUAL(x##ij[2], posSh[ij+2*blockSize], "%.16f", tag);        \
+      ASSERT_EQUAL(v##ij[0], velSh[ij], "%.16f", tag);                    \
+      ASSERT_EQUAL(v##ij[1], velSh[ij + blockSize], "%.16f", tag);        \
+      ASSERT_EQUAL(v##ij[2], velSh[ij+2*blockSize], "%.16f", tag);        \
+      ASSERT_EQUAL(omega##ij[0], omegaSh[ij], "%.16f", tag);              \
+      ASSERT_EQUAL(omega##ij[1], omegaSh[ij + blockSize], "%.16f", tag);  \
+      ASSERT_EQUAL(omega##ij[2], omegaSh[ij+2*blockSize], "%.16f", tag);  \
+      ASSERT_EQUAL(rad##ij, radiusSh[ij], "%.16f", tag);                  \
+      ASSERT_EQUAL(rmass##ij, rmassSh[ij], "%.16f", tag);                 \
+      ASSERT_EQUAL(type##ij, typeSh[ij], "%d", tag);                      \
     } while(0);
+
+template<int blockSize>
+__device__ void check_shared_mem(
+  int cid, int tid, int *cell_atom,
+  double *posSh, double *velSh, double *omegaSh,
+  double *radiusSh, double *rmassSh, int *typeSh,
+  int *panic,
+  unsigned int *cell_idx,
+  double *x, double *v, double *omega, 
+  double *radius, double *rmass, int *type) {
+  for (int j = tid; j < cell_atom[cid]; j += blockSize) {
+    int pid = cid*blockSize + j;
+    int idx = cell_idx[pid];
+    ASSERT_EQUAL(x[(idx*3)],   posSh[j], "%.16f", "chk");
+    ASSERT_EQUAL(x[(idx*3)+1], posSh[j+  blockSize], "%.16f", "chk");
+    ASSERT_EQUAL(x[(idx*3)+2], posSh[j+2*blockSize], "%.16f", "chk");
+    ASSERT_EQUAL(v[(idx*3)],   velSh[j], "%.16f", "chk");
+    ASSERT_EQUAL(v[(idx*3)+1], velSh[j+  blockSize], "%.16f", "chk");
+    ASSERT_EQUAL(v[(idx*3)+2], velSh[j+2*blockSize], "%.16f", "chk");
+    ASSERT_EQUAL(omega[(idx*3)],   omegaSh[j], "%.16f", "chk");
+    ASSERT_EQUAL(omega[(idx*3)+1], omegaSh[j+  blockSize], "%.16f", "chk");
+    ASSERT_EQUAL(omega[(idx*3)+2], omegaSh[j+2*blockSize], "%.16f", "chk");
+    ASSERT_EQUAL(radius[idx], radiusSh[j], "%.16f", "chk");
+    ASSERT_EQUAL(rmass[idx], rmassSh[j], "%.16f", "chk");
+    ASSERT_EQUAL(type[idx], typeSh[j], "%d", "chk");
+  }
+  __syncthreads();
+}
 #endif
 
 template<int blockSize>
 __device__ void load_cell_into_shared_mem(
   int cid, int tid, int *cell_atom,
+  //load from
   double3 *cell_x, double3 *cell_v, double3 *cell_omega,
   double *cell_radius, double *cell_rmass, int *cell_type,
+  //load into
   double *posSh, double *velSh, double *omegaSh,
-  double *radiusSh, double *rmassSh,
-  int *typeSh) {
+  double *radiusSh, double *rmassSh, int *typeSh,
+  //sanity check
+  int *panic,
+  unsigned int *cell_idx,
+  double *x, double *v, double *omega, 
+  double *radius, double *rmass, int *type) {
   for (int j = tid; j < cell_atom[cid]; j += blockSize) {
     int pid = cid*blockSize + j;
     double3 pos = cell_x[pid];
     double3 vel = cell_v[pid];
-    double3 omega = cell_omega[pid];
+    double3 omg = cell_omega[pid];
     posSh[j            ]   = pos.x;
     posSh[j+  blockSize]   = pos.y;
     posSh[j+2*blockSize]   = pos.z;
     velSh[j            ]   = vel.x;
     velSh[j+  blockSize]   = vel.y;
     velSh[j+2*blockSize]   = vel.z;
-    omegaSh[j            ] = omega.x;
-    omegaSh[j+  blockSize] = omega.y;
-    omegaSh[j+2*blockSize] = omega.z;
+    omegaSh[j            ] = omg.x;
+    omegaSh[j+  blockSize] = omg.y;
+    omegaSh[j+2*blockSize] = omg.z;
     radiusSh[j]            = cell_radius[pid];
     rmassSh[j]             = cell_rmass[pid];
     typeSh[j]              = cell_type[pid];
+
+#ifdef PARANOID_CHECK
+    int idx = cell_idx[pid];
+    ASSERT_EQUAL(x[(idx*3)],   pos.x, "%.16f", "load");
+    ASSERT_EQUAL(x[(idx*3)+1], pos.y, "%.16f", "load");
+    ASSERT_EQUAL(x[(idx*3)+2], pos.z, "%.16f", "load");
+    ASSERT_EQUAL(v[(idx*3)],   vel.x, "%.16f", "load");
+    ASSERT_EQUAL(v[(idx*3)+1], vel.y, "%.16f", "load");
+    ASSERT_EQUAL(v[(idx*3)+2], vel.z, "%.16f", "load");
+    ASSERT_EQUAL(omega[(idx*3)],   omg.x, "%.16f", "load");
+    ASSERT_EQUAL(omega[(idx*3)+1], omg.y, "%.16f", "load");
+    ASSERT_EQUAL(omega[(idx*3)+2], omg.z, "%.16f", "load");
+    ASSERT_EQUAL(x[(idx*3)],   posSh[j], "%.16f", "load");
+    ASSERT_EQUAL(x[(idx*3)+1], posSh[j+  blockSize], "%.16f", "load");
+    ASSERT_EQUAL(x[(idx*3)+2], posSh[j+2*blockSize], "%.16f", "load");
+    ASSERT_EQUAL(v[(idx*3)],   velSh[j], "%.16f", "load");
+    ASSERT_EQUAL(v[(idx*3)+1], velSh[j+  blockSize], "%.16f", "load");
+    ASSERT_EQUAL(v[(idx*3)+2], velSh[j+2*blockSize], "%.16f", "load");
+    ASSERT_EQUAL(omega[(idx*3)],   omegaSh[j], "%.16f", "load");
+    ASSERT_EQUAL(omega[(idx*3)+1], omegaSh[j+  blockSize], "%.16f", "load");
+    ASSERT_EQUAL(omega[(idx*3)+2], omegaSh[j+2*blockSize], "%.16f", "load");
+    ASSERT_EQUAL(radius[idx], radiusSh[j], "%.16f", "load");
+    ASSERT_EQUAL(rmass[idx], rmassSh[j], "%.16f", "load");
+    ASSERT_EQUAL(type[idx], typeSh[j], "%d", "load");
+#endif
   }
   __syncthreads();
 }
@@ -251,6 +311,7 @@ __device__ void pair_interaction(
 /* Cell list version of hertz kernel */
 template<bool eflag, bool vflag, int blockSize>
 __global__ void kernel_hertz_cell(
+             int *panic,
 			       float3 *cell_list, unsigned int *cell_idx,
 			       int *cell_type, int *cell_atom,
 			       const int inum,
@@ -310,9 +371,10 @@ __global__ void kernel_hertz_cell(
     unsigned int answer_pos = cell_idx[cid*blockSize+i];
 
     // load current cell into smem
-    load_cell_into_shared_mem<blockSize>(cid, tid, cell_atom,
-      cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
-      posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh);
+    //load_cell_into_shared_mem<blockSize>(cid, tid, cell_atom,
+    //  cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
+    //  posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
+    //  panic, cell_idx, x, v, omega, radius, rmass, type);
     if (answer_pos < inum) {
       double xi[3]; double xj[3];
       double vi[3]; double vj[3];
@@ -338,9 +400,9 @@ __global__ void kernel_hertz_cell(
       force = &f[answer_pos*3];
       torquei = &torque[answer_pos*3];
 
-#ifdef PARANOID_CHECK
-      CHECK_PARTICLE(i);
-#endif
+//#ifdef PARANOID_CHECK
+//      CHECK_PARTICLE(i, "i");
+//#endif
 
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {
@@ -359,10 +421,9 @@ __global__ void kernel_hertz_cell(
         typej = type[idxj];
         radj = radius[idxj];
         rmassj = rmass[idxj];
-
-#ifdef PARANOID_CHECK
-        CHECK_PARTICLE(j);
-#endif
+//#ifdef PARANOID_CHECK
+//        CHECK_PARTICLE(j, "j(1)");
+//#endif
 
         double *fshear = cuda_retrieve_fshearmap(
           fshearmap_valid, fshearmap_key, fshearmap_shear,
@@ -392,10 +453,16 @@ __global__ void kernel_hertz_cell(
 	          // load neighbor cell into smem
             load_cell_into_shared_mem<blockSize>(cid_nbor, tid, cell_atom,
               cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
-              posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh);
+              posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
+              panic, cell_idx, x, v, omega, radius, rmass, type);
+//#ifdef PARANOID_CHECK
+//            check_shared_mem<blockSize>(cid_nbor, tid, cell_atom,
+//              posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
+//              panic, cell_idx, x, v, omega, radius, rmass, type);
+//#endif
+
             if (answer_pos < inum) {
               for (int j = 0; j < cell_atom[cid_nbor]; j++) {
-
                 int idxj = cell_idx[cid_nbor*blockSize+j];
                 xj[0] = x[(idxj*3)];
                 xj[1] = x[(idxj*3)+1];
@@ -409,6 +476,10 @@ __global__ void kernel_hertz_cell(
                 typej = type[idxj];
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
+//#ifdef PARANOID_CHECK
+//                CHECK_PARTICLE(j, "j(2)");
+//#endif
+
                 double *fshear = cuda_retrieve_fshearmap(
                   fshearmap_valid, fshearmap_key, fshearmap_shear,
                   answer_pos, idxj);
