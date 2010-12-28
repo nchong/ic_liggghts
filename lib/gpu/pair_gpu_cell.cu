@@ -410,7 +410,7 @@ void init_cell_list(cell_list &cell_list_gpu,
   }
 }
 
-void clear_cell_list(cell_list &cell_list_gpu)
+void clear_cell_list(cell_list &cell_list_gpu, bool is_hertz)
 {
   cudaFree(cell_list_gpu.pos);
   cudaFree(cell_list_gpu.idx);
@@ -423,7 +423,13 @@ void clear_cell_list(cell_list &cell_list_gpu)
   cudaFree(d_overflow);
   cudaFree(d_rebuild);
 
-  //todo free hertz mallocs
+  if (is_hertz) {
+    cudaFree(cell_list_gpu.x);
+    cudaFree(cell_list_gpu.v);
+    cudaFree(cell_list_gpu.omega);
+    cudaFree(cell_list_gpu.radius);
+    cudaFree(cell_list_gpu.rmass);
+  }
 }
 
 

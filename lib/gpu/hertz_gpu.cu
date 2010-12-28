@@ -73,7 +73,7 @@ EXTERN bool hertz_gpu_init(
 // Clear memory on host and device
 // ---------------------------------------------------------------------------
 EXTERN void hertz_gpu_clear() {
-  clear_cell_list(cell_list_gpu);
+  clear_cell_list(cell_list_gpu, true);
   ASSERT_NO_CUDA_ERROR(cudaFree(d_x));
   ASSERT_NO_CUDA_ERROR(cudaFree(d_v));
   ASSERT_NO_CUDA_ERROR(cudaFree(d_omega));

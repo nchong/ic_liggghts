@@ -104,7 +104,7 @@ void build_cell_list(double *atom_pos, int *atom_type,
         double *d_x=NULL, double *d_v=NULL, double *d_omega=NULL,
         double *d_radius=NULL, double *d_rmass=NULL);
 
-void clear_cell_list(cell_list &cell_list_gpu);
+void clear_cell_list(cell_list &cell_list_gpu, bool is_hertz=false);
 
 __global__ void hertz_reorder_list(
     const int ncellx, const int ncelly, const int ncellz,

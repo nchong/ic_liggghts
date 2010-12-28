@@ -26,6 +26,8 @@
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
 #ifdef PARANOID_CHECK
+  #warning PARANOID_CHECK-ing means slow compilation..!
+
   #define ASSERT_EQUAL(x, y, fmt, tag)                                    \
     do {                                                                  \
       if ((x) != (y)) {                                                   \
@@ -351,9 +353,9 @@ __global__ void kernel_hertz_cell(
 
     // load current cell into smem
     load_cell_into_shared_mem<blockSize>(cid, tid, cell_atom,
-      cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
-      posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
-      panic, cell_idx, x, v, omega, radius, rmass, type);
+        cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
+        posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
+        panic, cell_idx, x, v, omega, radius, rmass, type);
     if (answer_pos < inum) {
 
       //load from global memory (TODO: shift to shared)
@@ -378,7 +380,7 @@ __global__ void kernel_hertz_cell(
 
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {
-	      if (j == i) continue;
+        if (j == i) continue;
 
         int idxj = cell_idx[cid*blockSize+j]; //within same cell as i
         xj[0] = x[(idxj*3)];
@@ -398,8 +400,8 @@ __global__ void kernel_hertz_cell(
 #endif
 
         double *fshear = cuda_retrieve_fshearmap(
-          fshearmap_valid, fshearmap_key, fshearmap_shear,
-          answer_pos, idxj);
+            fshearmap_valid, fshearmap_key, fshearmap_shear,
+            answer_pos, idxj);
         if (fshear == NULL) {
           continue; //on miss, so go onto next j
         }
@@ -412,62 +414,62 @@ __global__ void kernel_hertz_cell(
             fshear, torquei, force);
       }
     }
-      __syncthreads();
+    __syncthreads();
 
-      // compute force from neigboring cells
-      for (int nborz = nborz0; nborz <= nborz1; nborz++) {
-        for (int nbory = nbory0; nbory <= nbory1; nbory++) {
-          for (int nborx = nborx0; nborx <= nborx1; nborx++) {
-            if (nborz == bz && nbory == by && nborx == bx) continue;
-	          int cid_nbor = nborx +
-                           INT_MUL(nbory,ncellx) +
-	                         INT_MUL(nborz,INT_MUL(ncellx,ncelly));
+    // compute force from neigboring cells
+    for (int nborz = nborz0; nborz <= nborz1; nborz++) {
+      for (int nbory = nbory0; nbory <= nbory1; nbory++) {
+        for (int nborx = nborx0; nborx <= nborx1; nborx++) {
+          if (nborz == bz && nbory == by && nborx == bx) continue;
+          int cid_nbor = nborx +
+            INT_MUL(nbory,ncellx) +
+            INT_MUL(nborz,INT_MUL(ncellx,ncelly));
 
-	          // load neighbor cell into smem
-            load_cell_into_shared_mem<blockSize>(cid_nbor, tid, cell_atom,
+          // load neighbor cell into smem
+          load_cell_into_shared_mem<blockSize>(cid_nbor, tid, cell_atom,
               cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
               posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
               panic, cell_idx, x, v, omega, radius, rmass, type);
 
-            if (answer_pos < inum) {
-              for (int j = 0; j < cell_atom[cid_nbor]; j++) {
-                int idxj = cell_idx[cid_nbor*blockSize+j];
-                xj[0] = x[(idxj*3)];
-                xj[1] = x[(idxj*3)+1];
-                xj[2] = x[(idxj*3)+2];
-                vj[0] = v[(idxj*3)];
-                vj[1] = v[(idxj*3)+1];
-                vj[2] = v[(idxj*3)+2];
-                omegaj[0] = omega[(idxj*3)];
-                omegaj[1] = omega[(idxj*3)+1];
-                omegaj[2] = omega[(idxj*3)+2];
-                typej = type[idxj];
-                radj = radius[idxj];
-                rmassj = rmass[idxj];
+          if (answer_pos < inum) {
+            for (int j = 0; j < cell_atom[cid_nbor]; j++) {
+              int idxj = cell_idx[cid_nbor*blockSize+j];
+              xj[0] = x[(idxj*3)];
+              xj[1] = x[(idxj*3)+1];
+              xj[2] = x[(idxj*3)+2];
+              vj[0] = v[(idxj*3)];
+              vj[1] = v[(idxj*3)+1];
+              vj[2] = v[(idxj*3)+2];
+              omegaj[0] = omega[(idxj*3)];
+              omegaj[1] = omega[(idxj*3)+1];
+              omegaj[2] = omega[(idxj*3)+2];
+              typej = type[idxj];
+              radj = radius[idxj];
+              rmassj = rmass[idxj];
 #ifdef PARANOID_CHECK
-                CHECK_PARTICLE(j, "j(2)");
+              CHECK_PARTICLE(j, "j(2)");
 #endif
 
-                double *fshear = cuda_retrieve_fshearmap(
+              double *fshear = cuda_retrieve_fshearmap(
                   fshearmap_valid, fshearmap_key, fshearmap_shear,
                   answer_pos, idxj);
-                if (fshear == NULL) {
-                  continue; //on miss, so go onto next j
-                }
-
-                pair_interaction(
-                    xi, xj, vi, vj, omegai, omegaj,
-                    radi, radj, rmassi, rmassj, 0, 0, typei, typej,
-                    //passed through (constant)
-                    dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
-                    fshear, torquei, force);
+              if (fshear == NULL) {
+                continue; //on miss, so go onto next j
               }
+
+              pair_interaction(
+                  xi, xj, vi, vj, omegai, omegaj,
+                  radi, radj, rmassi, rmassj, 0, 0, typei, typej,
+                  //passed through (constant)
+                  dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
+                  fshear, torquei, force);
             }
-            __syncthreads();
           }
+          __syncthreads();
         }
       }
     }
   }
+}
 
 #endif
