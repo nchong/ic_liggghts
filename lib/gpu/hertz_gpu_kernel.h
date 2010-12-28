@@ -20,7 +20,7 @@
 #ifndef HERTZ_GPU_KERNEL
 #define HERTZ_GPU_KERNEL
 
-//#define PARANOID_CHECK //< do lots of checking
+#define PARANOID_CHECK //< do lots of checking
 #include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
@@ -36,20 +36,21 @@
       }                                                                   \
     } while(0);
 
-  #define CHECK_PARTICLE(ij, tag)                                         \
+  //x[ij] has been loaded from smem; check against linear arrays in global mem
+  #define CHECK_PARTICLE(ij, idx, tag)                                    \
     do {                                                                  \
-      ASSERT_EQUAL(x##ij[0], posSh[ij], "%.16f", tag);                    \
-      ASSERT_EQUAL(x##ij[1], posSh[ij + blockSize], "%.16f", tag);        \
-      ASSERT_EQUAL(x##ij[2], posSh[ij+2*blockSize], "%.16f", tag);        \
-      ASSERT_EQUAL(v##ij[0], velSh[ij], "%.16f", tag);                    \
-      ASSERT_EQUAL(v##ij[1], velSh[ij + blockSize], "%.16f", tag);        \
-      ASSERT_EQUAL(v##ij[2], velSh[ij+2*blockSize], "%.16f", tag);        \
-      ASSERT_EQUAL(omega##ij[0], omegaSh[ij], "%.16f", tag);              \
-      ASSERT_EQUAL(omega##ij[1], omegaSh[ij + blockSize], "%.16f", tag);  \
-      ASSERT_EQUAL(omega##ij[2], omegaSh[ij+2*blockSize], "%.16f", tag);  \
-      ASSERT_EQUAL(rad##ij, radiusSh[ij], "%.16f", tag);                  \
-      ASSERT_EQUAL(rmass##ij, rmassSh[ij], "%.16f", tag);                 \
-      ASSERT_EQUAL(type##ij, typeSh[ij], "%d", tag);                      \
+      ASSERT_EQUAL(x##ij[0], x[(idx*3)], "%.16f", tag);                   \
+      ASSERT_EQUAL(x##ij[1], x[(idx*3)+1], "%.16f", tag);                 \
+      ASSERT_EQUAL(x##ij[2], x[(idx*3)+2], "%.16f", tag);                 \
+      ASSERT_EQUAL(v##ij[0], v[(idx*3)], "%.16f", tag);                   \
+      ASSERT_EQUAL(v##ij[1], v[(idx*3)+1], "%.16f", tag);                 \
+      ASSERT_EQUAL(v##ij[2], v[(idx*3)+2], "%.16f", tag);                 \
+      ASSERT_EQUAL(omega##ij[0], omega[(idx*3)], "%.16f", tag);           \
+      ASSERT_EQUAL(omega##ij[1], omega[(idx*3)+1], "%.16f", tag);         \
+      ASSERT_EQUAL(omega##ij[2], omega[(idx*3)+2], "%.16f", tag);         \
+      ASSERT_EQUAL(rad##ij, radius[idx], "%.16f", tag);                   \
+      ASSERT_EQUAL(rmass##ij, rmass[idx], "%.16f", tag);                  \
+      ASSERT_EQUAL(type##ij, type[idx], "%d", tag);                       \
     } while(0);
 #endif
 
@@ -84,31 +85,6 @@ __device__ void load_cell_into_shared_mem(
     radiusSh[j]            = cell_radius[pid];
     rmassSh[j]             = cell_rmass[pid];
     typeSh[j]              = cell_type[pid];
-
-#ifdef PARANOID_CHECK
-    int idx = cell_idx[pid];
-    ASSERT_EQUAL(x[(idx*3)],   pos.x, "%.16f", "load");
-    ASSERT_EQUAL(x[(idx*3)+1], pos.y, "%.16f", "load");
-    ASSERT_EQUAL(x[(idx*3)+2], pos.z, "%.16f", "load");
-    ASSERT_EQUAL(v[(idx*3)],   vel.x, "%.16f", "load");
-    ASSERT_EQUAL(v[(idx*3)+1], vel.y, "%.16f", "load");
-    ASSERT_EQUAL(v[(idx*3)+2], vel.z, "%.16f", "load");
-    ASSERT_EQUAL(omega[(idx*3)],   omg.x, "%.16f", "load");
-    ASSERT_EQUAL(omega[(idx*3)+1], omg.y, "%.16f", "load");
-    ASSERT_EQUAL(omega[(idx*3)+2], omg.z, "%.16f", "load");
-    ASSERT_EQUAL(x[(idx*3)],   posSh[j], "%.16f", "load");
-    ASSERT_EQUAL(x[(idx*3)+1], posSh[j+  blockSize], "%.16f", "load");
-    ASSERT_EQUAL(x[(idx*3)+2], posSh[j+2*blockSize], "%.16f", "load");
-    ASSERT_EQUAL(v[(idx*3)],   velSh[j], "%.16f", "load");
-    ASSERT_EQUAL(v[(idx*3)+1], velSh[j+  blockSize], "%.16f", "load");
-    ASSERT_EQUAL(v[(idx*3)+2], velSh[j+2*blockSize], "%.16f", "load");
-    ASSERT_EQUAL(omega[(idx*3)],   omegaSh[j], "%.16f", "load");
-    ASSERT_EQUAL(omega[(idx*3)+1], omegaSh[j+  blockSize], "%.16f", "load");
-    ASSERT_EQUAL(omega[(idx*3)+2], omegaSh[j+2*blockSize], "%.16f", "load");
-    ASSERT_EQUAL(radius[idx], radiusSh[j], "%.16f", "load");
-    ASSERT_EQUAL(rmass[idx], rmassSh[j], "%.16f", "load");
-    ASSERT_EQUAL(type[idx], typeSh[j], "%d", "load");
-#endif
   }
   __syncthreads();
 }
@@ -335,7 +311,7 @@ __global__ void kernel_hertz_cell(
   // compute cell idx from 3D block idx
   int cid = bx + INT_MUL(by, ncellx) + INT_MUL(bz, INT_MUL(ncellx,ncelly));
 
-  // compute neighbour cell bounds
+  // compute neighbor cell bounds
   int nborz0 = max(bz-1,0), nborz1 = min(bz+1, ncellz-1),
       nbory0 = max(by-1,0), nbory1 = min(by+1, ncelly-1),
       nborx0 = max(bx-1,0), nborx1 = min(bx+1, ncellx-1);
@@ -360,24 +336,23 @@ __global__ void kernel_hertz_cell(
         panic, cell_idx, x, v, omega, radius, rmass, type);
     if (answer_pos < inum) {
 
-      //load from global memory (TODO: shift to shared)
-      xi[0] = x[(answer_pos*3)];
-      xi[1] = x[(answer_pos*3)+1];
-      xi[2] = x[(answer_pos*3)+2];
-      vi[0] = v[(answer_pos*3)];
-      vi[1] = v[(answer_pos*3)+1];
-      vi[2] = v[(answer_pos*3)+2];
-      omegai[0] = omega[(answer_pos*3)];
-      omegai[1] = omega[(answer_pos*3)+1];
-      omegai[2] = omega[(answer_pos*3)+2];
-      typei = type[answer_pos];
-      radi = radius[answer_pos];
-      rmassi = rmass[answer_pos];
+      xi[0] = posSh[i];
+      xi[1] = posSh[i+  blockSize];
+      xi[2] = posSh[i+2*blockSize];
+      vi[0] = velSh[i];
+      vi[1] = velSh[i+  blockSize];
+      vi[2] = velSh[i+2*blockSize];
+      omegai[0] = omegaSh[i];
+      omegai[1] = omegaSh[i+  blockSize];
+      omegai[2] = omegaSh[i+2*blockSize];
+      typei = typeSh[i];
+      radi = radiusSh[i];
+      rmassi = rmassSh[i];
       force = &f[answer_pos*3];
       torquei = &torque[answer_pos*3];
 
 #ifdef PARANOID_CHECK
-      CHECK_PARTICLE(i, "i");
+      CHECK_PARTICLE(i, answer_pos, "i");
 #endif
 
       // compute force within cell first
@@ -385,20 +360,20 @@ __global__ void kernel_hertz_cell(
         if (j == i) continue;
 
         int idxj = cell_idx[cid*blockSize+j]; //within same cell as i
-        xj[0] = x[(idxj*3)];
-        xj[1] = x[(idxj*3)+1];
-        xj[2] = x[(idxj*3)+2];
-        vj[0] = v[(idxj*3)];
-        vj[1] = v[(idxj*3)+1];
-        vj[2] = v[(idxj*3)+2];
-        omegaj[0] = omega[(idxj*3)];
-        omegaj[1] = omega[(idxj*3)+1];
-        omegaj[2] = omega[(idxj*3)+2];
-        typej = type[idxj];
-        radj = radius[idxj];
-        rmassj = rmass[idxj];
+        xj[0] = posSh[j];
+        xj[1] = posSh[j+  blockSize];
+        xj[2] = posSh[j+2*blockSize];
+        vj[0] = velSh[j];
+        vj[1] = velSh[j+  blockSize];
+        vj[2] = velSh[j+2*blockSize];
+        omegaj[0] = omegaSh[j];
+        omegaj[1] = omegaSh[j+  blockSize];
+        omegaj[2] = omegaSh[j+2*blockSize];
+        typej = typeSh[j];
+        radj = radiusSh[j];
+        rmassj = rmassSh[j];
 #ifdef PARANOID_CHECK
-        CHECK_PARTICLE(j, "j(1)");
+        CHECK_PARTICLE(j, idxj, "j(1)");
 #endif
 
         double *fshear = cuda_retrieve_fshearmap(
@@ -436,20 +411,20 @@ __global__ void kernel_hertz_cell(
           if (answer_pos < inum) {
             for (int j = 0; j < cell_atom[cid_nbor]; j++) {
               int idxj = cell_idx[cid_nbor*blockSize+j];
-              xj[0] = x[(idxj*3)];
-              xj[1] = x[(idxj*3)+1];
-              xj[2] = x[(idxj*3)+2];
-              vj[0] = v[(idxj*3)];
-              vj[1] = v[(idxj*3)+1];
-              vj[2] = v[(idxj*3)+2];
-              omegaj[0] = omega[(idxj*3)];
-              omegaj[1] = omega[(idxj*3)+1];
-              omegaj[2] = omega[(idxj*3)+2];
-              typej = type[idxj];
-              radj = radius[idxj];
-              rmassj = rmass[idxj];
+              xj[0] = posSh[j];
+              xj[1] = posSh[j+  blockSize];
+              xj[2] = posSh[j+2*blockSize];
+              vj[0] = velSh[j];
+              vj[1] = velSh[j+  blockSize];
+              vj[2] = velSh[j+2*blockSize];
+              omegaj[0] = omegaSh[j];
+              omegaj[1] = omegaSh[j+  blockSize];
+              omegaj[2] = omegaSh[j+2*blockSize];
+              typej = typeSh[j];
+              radj = radiusSh[j];
+              rmassj = rmassSh[j];
 #ifdef PARANOID_CHECK
-              CHECK_PARTICLE(j, "j(2)");
+              CHECK_PARTICLE(j, idxj, "j(2)");
 #endif
 
               double *fshear = cuda_retrieve_fshearmap(
