@@ -20,13 +20,13 @@
 #ifndef HERTZ_GPU_KERNEL
 #define HERTZ_GPU_KERNEL
 
-#define PARANOID_CHECK //< do lots of checking
-#include "cuPrintf.cu"
+//#define PARANOID_CHECK //< do lots of checking
 #include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
 #ifdef PARANOID_CHECK
   #warning PARANOID_CHECK-ing means slow compilation..!
+  #include "cuPrintf.cu"
 
   #define ASSERT_EQUAL(x, y, fmt, tag)                                    \
     do {                                                                  \
@@ -137,9 +137,11 @@ __device__ void pair_interaction(
     double *torque,
     double *force) {
 
+#ifdef PARANOID_CHECK
   if ((typei > num_atom_types) || (typej > num_atom_types)) {
     cuPrintf("ERROR: typei or typej > num_atom_types");
   }
+#endif
 
   // del is the vector from j to i
   double delx = xi[0] - xj[0];
