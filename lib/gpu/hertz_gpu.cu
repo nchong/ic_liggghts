@@ -31,6 +31,7 @@
 #include "fshearmap.cu"
 
 static NVCTimer timer;
+static int *d_panic;
 
 // ---------------------------------------------------------------------------
 // Return string with GPU info
@@ -85,6 +86,7 @@ EXTERN void hertz_gpu_clear() {
   ASSERT_NO_CUDA_ERROR(cudaFree(d_Geff));
   ASSERT_NO_CUDA_ERROR(cudaFree(d_betaeff));
   ASSERT_NO_CUDA_ERROR(cudaFree(d_coeffFrict));
+  ASSERT_NO_CUDA_ERROR(cudaFree(d_panic));
 }
 
 EXTERN struct fshearmap *create_fshearmap(
@@ -178,7 +180,6 @@ EXTERN void update_from_fshearmap(
   free_fshearmap(map);
 }
 
-static int *d_panic;
 EXTERN double hertz_gpu_cell(
   const bool eflag, const bool vflag,
   const int inum, const int nall, const int ago,
@@ -226,7 +227,7 @@ EXTERN double hertz_gpu_cell(
     //shear done by malloc_device_fshearmap()
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_torque, SIZE_2D));
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_f, SIZE_2D));
-    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_atom_type, SIZE_1D));
+    ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_atom_type, nall*sizeof(int)));
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_radius, SIZE_1D));
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_rmass, SIZE_1D));
 
@@ -312,7 +313,7 @@ EXTERN double hertz_gpu_cell(
 
   //just copy across 1d atom data
   ASSERT_NO_CUDA_ERROR(
-    cudaMemcpy(d_atom_type, host_type, SIZE_1D, cudaMemcpyHostToDevice));
+    cudaMemcpy(d_atom_type, host_type, (nall*sizeof(int)), cudaMemcpyHostToDevice));
   ASSERT_NO_CUDA_ERROR(
     cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice));
   ASSERT_NO_CUDA_ERROR(

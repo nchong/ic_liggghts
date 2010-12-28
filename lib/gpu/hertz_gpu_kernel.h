@@ -20,11 +20,10 @@
 #ifndef HERTZ_GPU_KERNEL
 #define HERTZ_GPU_KERNEL
 
+#define PARANOID_CHECK //< do lots of checking
 #include "cuPrintf.cu"
 #include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
-
-#define PARANOID_CHECK
 
 #ifdef PARANOID_CHECK
   #define ASSERT_EQUAL(x, y, fmt, tag)                                    \
@@ -50,34 +49,6 @@
       ASSERT_EQUAL(rmass##ij, rmassSh[ij], "%.16f", tag);                 \
       ASSERT_EQUAL(type##ij, typeSh[ij], "%d", tag);                      \
     } while(0);
-
-template<int blockSize>
-__device__ void check_shared_mem(
-  int cid, int tid, int *cell_atom,
-  double *posSh, double *velSh, double *omegaSh,
-  double *radiusSh, double *rmassSh, int *typeSh,
-  int *panic,
-  unsigned int *cell_idx,
-  double *x, double *v, double *omega, 
-  double *radius, double *rmass, int *type) {
-  for (int j = tid; j < cell_atom[cid]; j += blockSize) {
-    int pid = cid*blockSize + j;
-    int idx = cell_idx[pid];
-    ASSERT_EQUAL(x[(idx*3)],   posSh[j], "%.16f", "chk");
-    ASSERT_EQUAL(x[(idx*3)+1], posSh[j+  blockSize], "%.16f", "chk");
-    ASSERT_EQUAL(x[(idx*3)+2], posSh[j+2*blockSize], "%.16f", "chk");
-    ASSERT_EQUAL(v[(idx*3)],   velSh[j], "%.16f", "chk");
-    ASSERT_EQUAL(v[(idx*3)+1], velSh[j+  blockSize], "%.16f", "chk");
-    ASSERT_EQUAL(v[(idx*3)+2], velSh[j+2*blockSize], "%.16f", "chk");
-    ASSERT_EQUAL(omega[(idx*3)],   omegaSh[j], "%.16f", "chk");
-    ASSERT_EQUAL(omega[(idx*3)+1], omegaSh[j+  blockSize], "%.16f", "chk");
-    ASSERT_EQUAL(omega[(idx*3)+2], omegaSh[j+2*blockSize], "%.16f", "chk");
-    ASSERT_EQUAL(radius[idx], radiusSh[j], "%.16f", "chk");
-    ASSERT_EQUAL(rmass[idx], rmassSh[j], "%.16f", "chk");
-    ASSERT_EQUAL(type[idx], typeSh[j], "%d", "chk");
-  }
-  __syncthreads();
-}
 #endif
 
 template<int blockSize>
@@ -365,24 +336,25 @@ __global__ void kernel_hertz_cell(
       nbory0 = max(by-1,0), nbory1 = min(by+1, ncelly-1),
       nborx0 = max(bx-1,0), nborx1 = min(bx+1, ncellx-1);
 
+  double xi[3]; double xj[3];
+  double vi[3]; double vj[3];
+  double omegai[3]; double omegaj[3];
+  double radi; double radj;
+  double rmassi; double rmassj;
+  int typei; int typej;
+  double *torquei; double *force;
+
   // for every atom in the cell (modulo current threadid)
   for (int ii = 0; ii < ceil((float)(cell_atom[cid])/blockSize); ii++) {
     int i = tid + ii*blockSize;
     unsigned int answer_pos = cell_idx[cid*blockSize+i];
 
     // load current cell into smem
-    //load_cell_into_shared_mem<blockSize>(cid, tid, cell_atom,
-    //  cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
-    //  posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
-    //  panic, cell_idx, x, v, omega, radius, rmass, type);
+    load_cell_into_shared_mem<blockSize>(cid, tid, cell_atom,
+      cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
+      posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
+      panic, cell_idx, x, v, omega, radius, rmass, type);
     if (answer_pos < inum) {
-      double xi[3]; double xj[3];
-      double vi[3]; double vj[3];
-      double omegai[3]; double omegaj[3];
-      double radi; double radj;
-      double rmassi; double rmassj;
-      int typei; int typej;
-      double *torquei; double *force;
 
       //load from global memory (TODO: shift to shared)
       xi[0] = x[(answer_pos*3)];
@@ -400,9 +372,9 @@ __global__ void kernel_hertz_cell(
       force = &f[answer_pos*3];
       torquei = &torque[answer_pos*3];
 
-//#ifdef PARANOID_CHECK
-//      CHECK_PARTICLE(i, "i");
-//#endif
+#ifdef PARANOID_CHECK
+      CHECK_PARTICLE(i, "i");
+#endif
 
       // compute force within cell first
       for (int j = 0; j < cell_atom[cid]; j++) {
@@ -421,9 +393,9 @@ __global__ void kernel_hertz_cell(
         typej = type[idxj];
         radj = radius[idxj];
         rmassj = rmass[idxj];
-//#ifdef PARANOID_CHECK
-//        CHECK_PARTICLE(j, "j(1)");
-//#endif
+#ifdef PARANOID_CHECK
+        CHECK_PARTICLE(j, "j(1)");
+#endif
 
         double *fshear = cuda_retrieve_fshearmap(
           fshearmap_valid, fshearmap_key, fshearmap_shear,
@@ -439,6 +411,7 @@ __global__ void kernel_hertz_cell(
             dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
             fshear, torquei, force);
       }
+    }
       __syncthreads();
 
       // compute force from neigboring cells
@@ -455,11 +428,6 @@ __global__ void kernel_hertz_cell(
               cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
               posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
               panic, cell_idx, x, v, omega, radius, rmass, type);
-//#ifdef PARANOID_CHECK
-//            check_shared_mem<blockSize>(cid_nbor, tid, cell_atom,
-//              posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
-//              panic, cell_idx, x, v, omega, radius, rmass, type);
-//#endif
 
             if (answer_pos < inum) {
               for (int j = 0; j < cell_atom[cid_nbor]; j++) {
@@ -476,9 +444,9 @@ __global__ void kernel_hertz_cell(
                 typej = type[idxj];
                 radj = radius[idxj];
                 rmassj = rmass[idxj];
-//#ifdef PARANOID_CHECK
-//                CHECK_PARTICLE(j, "j(2)");
-//#endif
+#ifdef PARANOID_CHECK
+                CHECK_PARTICLE(j, "j(2)");
+#endif
 
                 double *fshear = cuda_retrieve_fshearmap(
                   fshearmap_valid, fshearmap_key, fshearmap_shear,
@@ -495,11 +463,11 @@ __global__ void kernel_hertz_cell(
                     fshear, torquei, force);
               }
             }
+            __syncthreads();
           }
         }
       }
     }
   }
-}
 
 #endif

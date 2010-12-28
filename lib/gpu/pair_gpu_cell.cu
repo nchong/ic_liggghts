@@ -422,6 +422,8 @@ void clear_cell_list(cell_list &cell_list_gpu)
   cudaFree(d_type);
   cudaFree(d_overflow);
   cudaFree(d_rebuild);
+
+  //todo free hertz mallocs
 }
 
 
