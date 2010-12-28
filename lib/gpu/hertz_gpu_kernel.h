@@ -20,7 +20,7 @@
 #ifndef HERTZ_GPU_KERNEL
 #define HERTZ_GPU_KERNEL
 
-#define PARANOID_CHECK //< do lots of checking
+//#define PARANOID_CHECK //< do lots of checking
 #include "fshearmap.cu"
 #define sqrtFiveOverSix 0.91287092917527685576161630466800355658790782499663875
 
@@ -62,12 +62,7 @@ __device__ void load_cell_into_shared_mem(
   double *cell_radius, double *cell_rmass, int *cell_type,
   //load into
   double *posSh, double *velSh, double *omegaSh,
-  double *radiusSh, double *rmassSh, int *typeSh,
-  //sanity check
-  int *panic,
-  unsigned int *cell_idx,
-  double *x, double *v, double *omega, 
-  double *radius, double *rmass, int *type) {
+  double *radiusSh, double *rmassSh, int *typeSh) {
   for (int j = tid; j < cell_atom[cid]; j += blockSize) {
     int pid = cid*blockSize + j;
     double3 pos = cell_x[pid];
@@ -332,8 +327,7 @@ __global__ void kernel_hertz_cell(
     // load current cell into smem
     load_cell_into_shared_mem<blockSize>(cid, tid, cell_atom,
         cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
-        posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
-        panic, cell_idx, x, v, omega, radius, rmass, type);
+        posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh);
     if (answer_pos < inum) {
 
       xi[0] = posSh[i];
@@ -405,8 +399,7 @@ __global__ void kernel_hertz_cell(
           // load neighbor cell into smem
           load_cell_into_shared_mem<blockSize>(cid_nbor, tid, cell_atom,
               cell_x, cell_v, cell_omega, cell_radius, cell_rmass, cell_type,
-              posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh,
-              panic, cell_idx, x, v, omega, radius, rmass, type);
+              posSh, velSh, omegaSh, radiusSh, rmassSh, typeSh);
 
           if (answer_pos < inum) {
             for (int j = 0; j < cell_atom[cid_nbor]; j++) {

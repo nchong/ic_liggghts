@@ -127,29 +127,6 @@ EXTERN struct fshearmap *create_fshearmap(
     }
   }
 
-  //paranoid
-  for (int ii=0; ii<inum; ii++) {
-    int i = ilist[ii];
-    int jnum = numneigh[i];
-
-    for (int jj = 0; jj<jnum; jj++) {
-      int j = firstneigh[i][jj];
-
-      double *shear = &firstshear[i][3*jj];
-      double *result = retrieve_fshearmap(map, i, j);
-      assert(result);
-      assert(result[0] == shear[0]);
-      assert(result[1] == shear[1]);
-      assert(result[2] == shear[2]);
-
-      result = retrieve_fshearmap(map, j, i);
-      assert(result);
-      assert(result[0] == -shear[0]);
-      assert(result[1] == -shear[1]);
-      assert(result[2] == -shear[2]);
-    }
-  }
-
   return map;
 }
 
@@ -326,83 +303,6 @@ EXTERN double hertz_gpu_cell(
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago,
     true, d_x, d_v, d_omega, d_radius, d_rmass);
-
-  do {
-    const int incell       = ncell          *sizeof(int);
-    const int incellblock  = ncell*blockSize*sizeof(int);
-    const int dncellblock  = ncell*blockSize*sizeof(double);
-    const int d3ncellblock = ncell*blockSize*sizeof(double3);
-    int     *h_idx   = (int *)    malloc(incellblock);
-    int     *h_natom = (int *)    malloc(incell);
-    double3 *h_pos   = (double3 *)malloc(d3ncellblock);
-    double3 *h_vel   = (double3 *)malloc(d3ncellblock);
-    double3 *h_omg   = (double3 *)malloc(d3ncellblock);
-    double  *h_rad   = (double *) malloc(dncellblock);
-    double  *h_rms   = (double *) malloc(dncellblock);
-    int     *h_typ   = (int *)    malloc(incellblock);
-    assert(h_idx);
-    assert(h_natom);
-    assert(h_pos);
-    assert(h_vel);
-    assert(h_omg);
-    assert(h_rad);
-    assert(h_rms);
-    assert(h_typ);
-
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_idx, cell_list_gpu.idx, incellblock, cudaMemcpyDeviceToHost));
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_natom, cell_list_gpu.natom, incell, cudaMemcpyDeviceToHost));
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_pos, cell_list_gpu.x, d3ncellblock, cudaMemcpyDeviceToHost));
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_vel, cell_list_gpu.v, d3ncellblock, cudaMemcpyDeviceToHost));
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_omg, cell_list_gpu.omega, d3ncellblock, cudaMemcpyDeviceToHost));
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_rad, cell_list_gpu.radius, dncellblock, cudaMemcpyDeviceToHost));
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_rms, cell_list_gpu.rmass, dncellblock, cudaMemcpyDeviceToHost));
-    ASSERT_NO_CUDA_ERROR(
-      cudaMemcpy(h_typ, cell_list_gpu.type, incellblock, cudaMemcpyDeviceToHost));
-
-    //printf("Testing cell_list_gpu consistency...");
-    for (int cid=0; cid<ncell; cid++) {
-      for (int j=0; j<h_natom[cid]; j++) {
-        int pid = cid*blockSize + j;
-        int idx = h_idx[pid];
-        double3 pos = h_pos[pid];
-        double3 vel = h_vel[pid];
-        double3 omg = h_omg[pid];
-        double  rad = h_rad[pid];
-        double  rms = h_rms[pid];
-        int     typ = h_typ[pid];
-        assert(idx < nall);
-        assert(pos.x == host_x[idx][0]);
-        assert(pos.y == host_x[idx][1]);
-        assert(pos.z == host_x[idx][2]);
-        assert(vel.x == host_v[idx][0]);
-        assert(vel.y == host_v[idx][1]);
-        assert(vel.z == host_v[idx][2]);
-        assert(omg.x == host_omega[idx][0]);
-        assert(omg.y == host_omega[idx][1]);
-        assert(omg.z == host_omega[idx][2]);
-        assert(rad   == host_radius[idx]);
-        assert(rms   == host_rmass[idx]);
-        assert(typ   == host_type[idx]);
-      }
-    }
-    //printf("done\n");
-
-    free(h_idx);
-    free(h_natom);
-    free(h_pos);
-    free(h_vel);
-    free(h_omg);
-    free(h_rad);
-    free(h_rms);
-    free(h_typ);
-  } while(0);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
