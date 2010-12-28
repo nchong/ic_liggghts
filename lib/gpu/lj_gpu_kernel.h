@@ -29,19 +29,19 @@ __global__ void kernel_lj_cell(float3 *force3,
 			       const int inum, const int nall, const int ncell, 
 			       const int ncellx, const int ncelly, const int ncellz)
 {
-	
-  
-	
+
+
+
   // calculate 3D block idx from 2d block
   int bx = blockIdx.x;
   int by = blockIdx.y % ncelly;
   int bz = blockIdx.y / ncelly;
 
   int tid = threadIdx.x;
-  
+
   // compute cell idx from 3D block idx
   int cid = bx + INT_MUL(by, ncellx) + INT_MUL(bz, INT_MUL(ncellx,ncelly));
-  
+
   __shared__ int typeSh[blockSize];
   __shared__ float posSh[blockSize*3];
   __shared__ float cutsqSh[MAX_SHARED_TYPES*MAX_SHARED_TYPES];
@@ -111,37 +111,37 @@ __global__ void kernel_lj_cell(float3 *force3,
 
       // compute force from current cell
       for (int j = 0; j < cell_atom[cid]; j++) {
-	if (j == i) continue;
-	float delx = ix - posSh[j            ];
-	float dely = iy - posSh[j+  blockSize];
-	float delz = iz - posSh[j+2*blockSize];
-	int jtype = typeSh[j];
-	int mtype = itype + jtype*MAX_SHARED_TYPES;
-	float r2inv = delx*delx + dely*dely + delz*delz;
-	
-	if (r2inv < cutsqSh[mtype]) {
-	  r2inv = 1.0f/r2inv;
-	  float r6inv = r2inv * r2inv * r2inv;
-	  float force = r2inv*r6inv*(lj1Sh[mtype]*r6inv - lj2Sh[mtype]);
-	  f.x += delx * force;
-	  f.y += dely * force;
-	  f.z += delz * force;
+        if (j == i) continue;
+        float delx = ix - posSh[j            ];
+        float dely = iy - posSh[j+  blockSize];
+        float delz = iz - posSh[j+2*blockSize];
+        int jtype = typeSh[j];
+        int mtype = itype + jtype*MAX_SHARED_TYPES;
+        float r2inv = delx*delx + dely*dely + delz*delz;
 
-	  if (eflag) {
-	    float e = r6inv*(lj3Sh[mtype]*r6inv - lj4Sh[mtype]);
-	    ener += (e - offsetSh[mtype]); 
-	  }
-	  
-	  if (vflag) {
-	    v0.x += delx*delx*force;
-	    v0.y += dely*dely*force;
-	    v0.z += delz*delz*force;
-	    v1.x += delx*dely*force;
-	    v1.y += delx*delz*force;
-	    v1.z += dely*delz*force;
-	  }
+        if (r2inv < cutsqSh[mtype]) {
+          r2inv = 1.0f/r2inv;
+          float r6inv = r2inv * r2inv * r2inv;
+          float force = r2inv*r6inv*(lj1Sh[mtype]*r6inv - lj2Sh[mtype]);
+          f.x += delx * force;
+          f.y += dely * force;
+          f.z += delz * force;
 
-	} 
+          if (eflag) {
+            float e = r6inv*(lj3Sh[mtype]*r6inv - lj4Sh[mtype]);
+            ener += (e - offsetSh[mtype]); 
+          }
+
+          if (vflag) {
+            v0.x += delx*delx*force;
+            v0.y += dely*dely*force;
+            v0.z += delz*delz*force;
+            v1.x += delx*dely*force;
+            v1.y += delx*delz*force;
+            v1.z += dely*delz*force;
+          }
+
+        } 
       }
     }
     __syncthreads();
@@ -149,68 +149,68 @@ __global__ void kernel_lj_cell(float3 *force3,
     // compute force from neigboring cells
     for (int nborz = nborz0; nborz <= nborz1; nborz++) {
       for (int nbory = nbory0; nbory <= nbory1; nbory++) {
-	for (int nborx = nborx0; nborx <= nborx1; nborx++) {
-	  if (nborz == bz && nbory == by && nborx == bx) continue;
-	  
-	  // compute cell id
-	  int cid_nbor = nborx + INT_MUL(nbory,ncellx) + 
-	    INT_MUL(nborz,INT_MUL(ncellx,ncelly));
-	
-	  // load neighbor cell position and type into smem
-	  for (int j = tid; j < cell_atom[cid_nbor]; j += blockSize) {
-	    int pid = INT_MUL(cid_nbor,blockSize) + j;
-	    float3 pos = cell_list[pid];
-	    posSh[j            ] = pos.x;
-	    posSh[j+  blockSize] = pos.y;
-	    posSh[j+2*blockSize] = pos.z;
-	    typeSh[j]           = cell_type[pid];
-	  }
-	  __syncthreads();
-	  // compute force
-	  if (answer_pos < inum) {
-	    for (int j = 0; j < cell_atom[cid_nbor]; j++) {
-	      float delx = ix - posSh[j           ];
-	      float dely = iy - posSh[j+  blockSize];
-	      float delz = iz - posSh[j+2*blockSize];
-	      int jtype = typeSh[j];
-	      int mtype = itype + jtype*MAX_SHARED_TYPES;
-	      float r2inv = delx*delx + dely*dely + delz*delz;
-	      
-	      if (r2inv < cutsqSh[mtype]) {
-		r2inv = 1.0f/r2inv;
-		float r6inv = r2inv * r2inv * r2inv;
-		float force = r2inv*r6inv*(lj1Sh[mtype]*r6inv - lj2Sh[mtype]);
-		f.x += delx * force;
-		f.y += dely * force;
-		f.z += delz * force;
+        for (int nborx = nborx0; nborx <= nborx1; nborx++) {
+          if (nborz == bz && nbory == by && nborx == bx) continue;
 
-		if (eflag) {
-		  float e=r6inv*(lj3Sh[mtype]*r6inv - lj4Sh[mtype]);				
-		  ener += (e-offsetSh[mtype]); 
-		}
-		if (vflag) {
-		  v0.x += delx*delx*force;
-		  v0.y += dely*dely*force;
-		  v0.z += delz*delz*force;
-		  v1.x += delx*dely*force;
-		  v1.y += delx*delz*force;
-		  v1.z += dely*delz*force;
-		}
-	      }
-	    }
-	  }
-	  __syncthreads();
-	}
+          // compute cell id
+          int cid_nbor = nborx + INT_MUL(nbory,ncellx) + 
+            INT_MUL(nborz,INT_MUL(ncellx,ncelly));
+
+          // load neighbor cell position and type into smem
+          for (int j = tid; j < cell_atom[cid_nbor]; j += blockSize) {
+            int pid = INT_MUL(cid_nbor,blockSize) + j;
+            float3 pos = cell_list[pid];
+            posSh[j            ] = pos.x;
+            posSh[j+  blockSize] = pos.y;
+            posSh[j+2*blockSize] = pos.z;
+            typeSh[j]           = cell_type[pid];
+          }
+          __syncthreads();
+          // compute force
+          if (answer_pos < inum) {
+            for (int j = 0; j < cell_atom[cid_nbor]; j++) {
+              float delx = ix - posSh[j           ];
+              float dely = iy - posSh[j+  blockSize];
+              float delz = iz - posSh[j+2*blockSize];
+              int jtype = typeSh[j];
+              int mtype = itype + jtype*MAX_SHARED_TYPES;
+              float r2inv = delx*delx + dely*dely + delz*delz;
+
+              if (r2inv < cutsqSh[mtype]) {
+                r2inv = 1.0f/r2inv;
+                float r6inv = r2inv * r2inv * r2inv;
+                float force = r2inv*r6inv*(lj1Sh[mtype]*r6inv - lj2Sh[mtype]);
+                f.x += delx * force;
+                f.y += dely * force;
+                f.z += delz * force;
+
+                if (eflag) {
+                  float e=r6inv*(lj3Sh[mtype]*r6inv - lj4Sh[mtype]);				
+                  ener += (e-offsetSh[mtype]); 
+                }
+                if (vflag) {
+                  v0.x += delx*delx*force;
+                  v0.y += dely*dely*force;
+                  v0.z += delz*delz*force;
+                  v1.x += delx*dely*force;
+                  v1.y += delx*delz*force;
+                  v1.z += dely*delz*force;
+                }
+              }
+            }
+          }
+          __syncthreads();
+        }
       }
     }
 
     if (answer_pos < inum) {
       force3[answer_pos] = f;
       if (eflag)
-	energy[answer_pos] = ener;
+        energy[answer_pos] = ener;
       if (vflag) {
-	virial[2*answer_pos] = v0;
-	virial[2*answer_pos+1] = v1;
+        virial[2*answer_pos] = v0;
+        virial[2*answer_pos+1] = v1;
       }
     }
   }
