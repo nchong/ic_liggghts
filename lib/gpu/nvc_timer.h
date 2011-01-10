@@ -21,6 +21,7 @@
 #define NVC_TIMER_H
 
 #include "nvc_macros.h"
+#include <string>
 
 #define cudaEventDestroy(a)
 
@@ -70,10 +71,17 @@ class NVCTimer {
   /// Return the total time in seconds
   inline double total_seconds() { return _total_time/1000.0; }
 
+  inline void set_name(char *_name) { name = _name; };
+
+  inline std::string get_name(void) { return name; };
+
+  inline void reset(void) { _total_time = 0.0; };
+
  private:
   cudaEvent_t start_event, stop_event;
   double _total_time;
   bool initialized;
+  std::string name;
 };
 
 #endif

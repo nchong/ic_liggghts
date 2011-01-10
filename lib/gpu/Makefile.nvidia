@@ -20,8 +20,8 @@
 BIN_DIR = .
 OBJ_DIR = .
 AR = ar
-#CUDA_CPP  = nvcc -I/usr/local/cuda/include -DUNIX -O3 -Xptxas -v --use_fast_math
-CUDA_CPP  = nvcc -I/usr/local/cuda/include -DUNIX -g -G -Xptxas -v --use_fast_math
+CUDA_CPP  = nvcc -I/usr/local/cuda/include -DUNIX -O3 -Xptxas -v --use_fast_math
+#CUDA_CPP  = nvcc -I/usr/local/cuda/include -DUNIX -g -G -Xptxas -v --use_fast_math
 CUDA_ARCH = -arch=sm_13
 CUDA_PREC = -D_SINGLE_SINGLE
 CUDA_LINK = -L/usr/local/cuda/lib -lcudart $(CUDA_LIB)

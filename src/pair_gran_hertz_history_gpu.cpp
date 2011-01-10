@@ -29,6 +29,7 @@
 #include "error.h"
 #include "universe.h"
 #include "mech_param_gran.h"
+#include "simple_timer.h"
 
 #include <string>
 
@@ -46,6 +47,7 @@ struct fshearmap *create_fshearmap(
   int **firstneigh, /*list->firstneigh*/
   int **firsttouch, /*listgranhistory->firstneigh*/
   double **firstshear /*listgranhistory->firstdouble*/);
+void clean_fshearmap(struct fshearmap *shearmap);
 void update_from_fshearmap(
   struct fshearmap *shearmap,
   int inum, /*list->inum*/
@@ -150,22 +152,45 @@ void PairGranHertzHistoryGPU::init_style()
   }
 }
 
+static SimpleTimer *timers = new SimpleTimer[8];
+
 void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
   int inum = list->inum;
   static int step = -1; step++;
+  static int gpu_steps = 0;
 
   if (inum == 0) {
     PairGranHookeHistory::compute(eflag, vflag);
   } else {
+    gpu_steps++;
+
     inum = atom->nlocal;
     int nall = atom->nlocal + atom->nghost;
     int num_atom_types =  mpg->max_type+1;
 
+    /* take copies of torque, f*/
+    size_t table_size = nall * sizeof(double *);
+    double **gpu_torque = (double **)malloc(table_size);
+    double **gpu_force = (double **)malloc(table_size);
+    for (int i=0; i<nall; i++) {
+      gpu_torque[i] = (double *)malloc(3 * sizeof(double));
+      gpu_force[i] = (double *)malloc(3 * sizeof(double));
+      for (int j=0; j<3; j++) {
+        gpu_torque[i][j] = atom->torque[i][j];
+        gpu_force[i][j] = atom->f[i][j];
+      }
+    }
+
+    timers[3].start();
+    timers[0].start();
     //create cpu shearmap for device
     struct fshearmap *fshearmap = create_fshearmap(
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
+    timers[0].stop();
+    timers[0].add_to_total();
 
+    timers[1].start();
     //call gpu using host-level gpu datastructures
     hertz_gpu_cell(eflag, vflag, inum, nall, neighbor->ago,
       atom->x, atom->v, atom->omega,
@@ -181,16 +206,47 @@ void PairGranHertzHistoryGPU::compute(int eflag, int vflag) {
       force->nktv2p,
 
       fshearmap,
-      atom->torque,
-      atom->f);
+      gpu_torque, gpu_force);
+      //atom->torque,
+      //atom->f);
+    timers[1].stop();
 
+    timers[2].start();
     //get shear results back from device (NB: frees fshearmap)
     update_from_fshearmap(fshearmap,
         inum, list->ilist, list->numneigh, list->firstneigh,
         listgranhistory->firstneigh, listgranhistory->firstdouble);
+    timers[2].stop(); 
+    timers[3].stop();
 
-    if ((step < 100) || (step % 1000 == 0)) {
-      PairGranHertzHistory::emit_results(step, "gpu.out");
+    //clean_fshearmap(fshearmap);
+
+
+    //do the real computation :(
+
+    timers[4].start();    
+    PairGranHookeHistory::compute(eflag, vflag);
+    timers[4].stop();    
+    free(gpu_torque);
+    free(gpu_force);
+
+    timers[1].add_to_total();
+    timers[2].add_to_total();
+    timers[3].add_to_total();
+    timers[4].add_to_total();
+
+    if (gpu_steps % 1000 == 0) {
+      printf("- [fshearmap setup] %.3fms\n", timers[0].total_time());
+      hertz_gpu_time();
+      printf("- [total kernel time] %.3fms\n", timers[1].total_time());
+      printf("- [fshearmap post-setup] %.3fms\n", timers[2].total_time());
+      printf("- [total time] %.3fms\n", timers[3].total_time());
+      printf("- [CPU TIME] %.3fms\n", timers[4].total_time());
+      for (int i=0; i<5; i++) timers[i].reset();
     }
+
+    //if ((step < 100) || (step % 1000 == 0)) {
+    //  PairGranHertzHistory::emit_results(step, "gpu.out");
+    //}
   }
 }

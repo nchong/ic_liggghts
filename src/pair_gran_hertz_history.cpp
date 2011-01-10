@@ -166,12 +166,25 @@ void PairGranHertzHistory::emit_particle_details(int i, bool do_header=true) {
     atom->f[i][0], atom->f[i][1], atom->f[i][2]);
 }
 
+#include "simple_timer.h"
+static SimpleTimer *timers = new SimpleTimer[8];
+
 void PairGranHertzHistory::compute(int eflag, int vflag) {
   static int step = -1; step++;
+  static int cpu_steps = 0;
 
+  int inum = list->inum;
+  if (inum != 0) { cpu_steps++; }
+  timers[0].start();
   PairGranHookeHistory::compute(eflag, vflag);
-
-  if ((list->inum != 0) && (step < 100) || (step % 1000 == 0)) {
-    emit_results(step, "cpu.out");
+  timers[0].stop();
+  timers[0].add_to_total();
+  if (cpu_steps % 1000 == 0) {
+    printf("- [total time] %.3fms\n", timers[0].total_time());
+    timers[0].reset();
   }
+
+  //if ((list->inum != 0) && (step < 100) || (step % 1000 == 0)) {
+  //  emit_results(step, "cpu.out");
+  //}
 }

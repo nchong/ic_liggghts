@@ -30,8 +30,8 @@
 #include "cuPrintf.cu"
 #include "fshearmap.cu"
 
-static NVCTimer timer;
 static int *d_panic;
+static NVCTimer *timers = new NVCTimer[8];
 
 // ---------------------------------------------------------------------------
 // Return string with GPU info
@@ -64,7 +64,12 @@ EXTERN bool hertz_gpu_init(
    
   init_cell_list_const(cell_size, skin, boxlo, boxhi);
 
-  timer.init();
+  for (int i=0; i<8; i++) timers[i].init();
+  timers[0].set_name("array flattening and memcpy to dev");
+  timers[1].set_name("gpu_fshearmap malloc and copy to dev");
+  timers[2].set_name("build_cell_list");
+  timers[3].set_name("hertz kernel");
+  timers[4].set_name("array un-flattening and memcpy to host");
 
   return true;
 }
@@ -154,6 +159,10 @@ EXTERN void update_from_fshearmap(
       //TODO: necessary to uncheck firsttouch[i][jj]?
     }
   }
+  free_fshearmap(map);
+}
+
+EXTERN void clean_fshearmap(struct fshearmap *map) {
   free_fshearmap(map);
 }
 
@@ -265,6 +274,7 @@ EXTERN double hertz_gpu_cell(
     ASSERT_NO_CUDA_ERROR(cudaMalloc((void**)&d_panic, sizeof(int)));
   }
 
+  timers[0].start();
   //flatten incoming 2d atom data
   for (int i=0; i< nall; i++) {
     for (int j=0; j<3; j++) {
@@ -295,14 +305,19 @@ EXTERN double hertz_gpu_cell(
     cudaMemcpy(d_radius, host_radius, SIZE_1D, cudaMemcpyHostToDevice));
   ASSERT_NO_CUDA_ERROR(
     cudaMemcpy(d_rmass, host_rmass, SIZE_1D, cudaMemcpyHostToDevice));
+  timers[0].stop();
 
+  timers[1].start();
   struct fshearmap gpu_fshearmap;
   malloc_device_fshearmap(gpu_fshearmap, inum);
   copy_into_device_fshearmap(gpu_fshearmap, host_fshearmap);
+  timers[1].stop();
 
+  timers[2].start();
   build_cell_list(host_x[0], host_type, cell_list_gpu, 
 	  ncell, ncellx, ncelly, ncellz, blockSize, inum, nall, ago,
     true, d_x, d_v, d_omega, d_radius, d_rmass);
+  timers[2].stop();
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -313,8 +328,8 @@ EXTERN double hertz_gpu_cell(
   ASSERT_NO_CUDA_ERROR(cudaMemset(d_panic, 0, sizeof(int)));
   cudaPrintfInit();
 
-  timer.start();
   const int BX=blockSize;
+  timers[3].start();
   dim3 GX(ncellx, ncelly*ncellz);
   kernel_hertz_cell<true,true,64><<<GX,BX>>>(
     d_panic,
@@ -337,8 +352,7 @@ EXTERN double hertz_gpu_cell(
     dt, num_atom_types,
     d_Yeff, d_Geff, d_betaeff, d_coeffFrict, nktv2p
   );
-  timer.stop();
-  timer.add_to_total();
+  timers[3].stop();
 
   cudaThreadSynchronize();
   cudaPrintfDisplay(stderr, true);
@@ -356,6 +370,7 @@ EXTERN double hertz_gpu_cell(
     exit(1);
   }
 
+  timers[4].start();
   //copy back force calculations (shear, torque, force)
   copy_from_device_fshearmap(gpu_fshearmap, host_fshearmap);
   ASSERT_NO_CUDA_ERROR(
@@ -374,14 +389,24 @@ EXTERN double hertz_gpu_cell(
 
   //now free all malloc'ed data
   free_device_fshearmap(gpu_fshearmap);
+  timers[4].stop();
   //gpu shearmap freed by call to update_from_fshearmap
   //all other atom data is static
+
+  timers[0].add_to_total();
+  timers[1].add_to_total();
+  timers[2].add_to_total();
+  timers[3].add_to_total();
+  timers[4].add_to_total();
 
   return 0.0;
 }
 
 EXTERN void hertz_gpu_time() {
-  printf("Kernel time %.16fms\n", timer.total_time());
+  for (int i=0; i<5; i++) {
+    printf("%d [%s] %.1fms\n", i, timers[i].get_name().c_str(), timers[i].total_time());
+    timers[i].reset();
+  }
 }
 
 EXTERN int hertz_gpu_num_devices() {
