@@ -512,8 +512,8 @@ void build_cell_list(double *atom_pos, int *atom_type,
     }
     
     // sort atoms in every cell by atom index to avoid floating point associativity problem.
-    sortBlocks(cell_list_gpu.idx, cell_list_gpu.pos, 
-	       cell_list_gpu.type, ncell*buffer, buffer);
+    //sortBlocks(cell_list_gpu.idx, cell_list_gpu.pos, 
+	  //     cell_list_gpu.type, ncell*buffer, buffer);
 
     cudaThreadSynchronize();
     err = cudaGetLastError();

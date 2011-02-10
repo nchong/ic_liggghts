@@ -104,7 +104,7 @@ __device__ void pair_interaction(
     double nktv2p,
 
   //inouts
-    double *&shear,
+    double *shear,
     double *torque,
     double *force) {
 
@@ -113,10 +113,6 @@ __device__ void pair_interaction(
     cuPrintf("ERROR: typei or typej > num_atom_types");
   }
 #endif
-
-  double _s[3];
-  double _t[3];
-  double _f[3];
 
   // del is the vector from j to i
   double delx = xi[0] - xj[0];
@@ -127,9 +123,9 @@ __device__ void pair_interaction(
   double radsum = radi + radj;
   if (rsq >= radsum*radsum) {
     //unset non-touching atoms
-    //shear[0] = 0.0;
-    //shear[1] = 0.0;
-    //shear[2] = 0.0;
+    shear[0] = 0.0;
+    shear[1] = 0.0;
+    shear[2] = 0.0;
   } else {
     //distance between centres of atoms i and j
     //or, magnitude of del vector
@@ -202,17 +198,17 @@ __device__ void pair_interaction(
     double vtr3 = vt3 - (dely*wr1-delx*wr2);
 
     // shear history effects
-    //shear[0] += vtr1 * dt;
-    //shear[1] += vtr2 * dt;
-    //shear[2] += vtr3 * dt;
+    shear[0] += vtr1 * dt;
+    shear[1] += vtr2 * dt;
+    shear[2] += vtr3 * dt;
 
     // rotate shear displacements
     double rsht = shear[0]*delx + shear[1]*dely + shear[2]*delz;
     rsht *= rsqinv;
 
-    //shear[0] -= rsht*delx;
-    //shear[1] -= rsht*dely;
-    //shear[2] -= rsht*delz;
+    shear[0] -= rsht*delx;
+    shear[1] -= rsht*dely;
+    shear[2] -= rsht*delz;
 
     // tangential forces = shear + tangential velocity damping
     double fs1 = - (kt*shear[0] + gammat*vtr1);
@@ -228,9 +224,9 @@ __device__ void pair_interaction(
                     shear[1]*shear[1] +
                     shear[2]*shear[2]);
       if (shrmag != 0.0) {
-        //shear[0] = (fn/fs) * (shear[0] + gammat*vtr1/kt) - gammat*vtr1/kt;
-        //shear[1] = (fn/fs) * (shear[1] + gammat*vtr2/kt) - gammat*vtr2/kt;
-        //shear[2] = (fn/fs) * (shear[2] + gammat*vtr3/kt) - gammat*vtr3/kt;
+        shear[0] = (fn/fs) * (shear[0] + gammat*vtr1/kt) - gammat*vtr1/kt;
+        shear[1] = (fn/fs) * (shear[1] + gammat*vtr2/kt) - gammat*vtr2/kt;
+        shear[2] = (fn/fs) * (shear[2] + gammat*vtr3/kt) - gammat*vtr3/kt;
         fs1 *= fn/fs;
         fs2 *= fn/fs;
         fs3 *= fn/fs;
@@ -248,13 +244,13 @@ __device__ void pair_interaction(
     double tor3 = rinv * (delx*fs2 - dely*fs1);
 
     // this is what we've been working up to!
-    //force[0] += fx;
-    //force[1] += fy;
-    //force[2] += fz;
+    force[0] += fx;
+    force[1] += fy;
+    force[2] += fz;
 
-    //torque[0] -= radi*tor1;
-    //torque[1] -= radi*tor2;
-    //torque[2] -= radi*tor3;
+    torque[0] -= radi*tor1;
+    torque[1] -= radi*tor2;
+    torque[2] -= radi*tor3;
   }
 }
 
@@ -323,6 +319,10 @@ __global__ void kernel_hertz_cell(
   int typei; int typej;
   double *torquei; double *force;
 
+  double force_dummy[3];
+  double torque_dummy[3];
+  double shear_dummy[3];
+
   // for every atom in the cell (modulo current threadid)
   for (int ii = 0; ii < ceil((float)(cell_atom[cid])/blockSize); ii++) {
     int i = tid + ii*blockSize;
@@ -386,7 +386,8 @@ __global__ void kernel_hertz_cell(
           radi, radj, rmassi, rmassj, 0, 0, typei, typej,
           //passed through (constant)
           dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
-          fshear, torquei, force);
+          &shear_dummy[0], &torque_dummy[0], &force_dummy[0]);
+          //fshear, torquei, force);
       }
     }
     __syncthreads();
@@ -436,7 +437,8 @@ __global__ void kernel_hertz_cell(
                   radi, radj, rmassi, rmassj, 0, 0, typei, typej,
                   //passed through (constant)
                   dt, num_atom_types, Yeff, Geff, betaeff, coeffFrict, nktv2p,
-                  fshear, torquei, force);
+                  //fshear, torquei, force);
+                  &shear_dummy[0], &torque_dummy[0], &force_dummy[0]);
               }
           }
           __syncthreads();
