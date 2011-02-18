@@ -42,8 +42,7 @@ class PairGranHertzHistory : public PairGranHookeHistory {
   void settings(int, char **);
   void init_substyle(); 
   void compute(int, int);
-  void emit_results(int, char *);
-  void emit_particle_details(int,bool);
+  void emit(const char *);
 
  protected:
    virtual void deriveContactModelParams(int &, int &,double &, double &, double &,double &, double &, double &, double &);

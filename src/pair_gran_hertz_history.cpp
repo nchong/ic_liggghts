@@ -111,25 +111,46 @@ void PairGranHertzHistory::settings(int narg, char **arg)
     error->all("Illegal pair_style command");
 }
 
-void PairGranHertzHistory::emit_results(int step, char *fname) {
+#include "hertz.pb.h"
+void PairGranHertzHistory::emit(const char *fname) {
   int inum = list->inum;
   int nall = atom->nlocal + atom->nghost;
 
   FILE *ofile = fopen(fname, "a");
-  fprintf(ofile, "Step %d\n", step);
-  fprintf(ofile, "Force comparison\n");
+  for (int i=0; i<nall; i++) {
+    for (int j=0; j<3; j++) {
+      fprintf(ofile, "x[%d][%d], %.16f\n", i,j,atom->x[i][j]);
+    }
+  }
+  for (int i=0; i<nall; i++) {
+    for (int j=0; j<3; j++) {
+      fprintf(ofile, "v[%d][%d], %.16f\n", i,j,atom->v[i][j]);
+    }
+  }
+  for (int i=0; i<nall; i++) {
+    for (int j=0; j<3; j++) {
+      fprintf(ofile, "omega[%d][%d], %.16f\n", i,j,atom->omega[i][j]);
+    }
+  }
+  for (int i=0; i<nall; i++) {
+    fprintf(ofile, "radius[%d], %.16f\n", i,atom->radius[i]);
+  }
+  for (int i=0; i<nall; i++) {
+    fprintf(ofile, "rmass[%d], %.16f\n", i,atom->rmass[i]);
+  }
+  for (int i=0; i<nall; i++) {
+    fprintf(ofile, "type[%d], %d\n", i,atom->type[i]);
+  }
   for (int i=0; i<nall; i++) {
     for (int j=0; j<3; j++) {
       fprintf(ofile, "f[%d][%d], %.16f\n", i,j,atom->f[i][j]);
     }
   }
-  fprintf(ofile, "Torque comparison\n");
   for (int i=0; i<nall; i++) {
     for (int j=0; j<3; j++) {
       fprintf(ofile, "torque[%d][%d], %.16f\n", i,j,atom->torque[i][j]);
     }
   }
-  fprintf(ofile, "Shear comparison\n");
   for (int ii=0; ii<inum; ii++) {
     int i = list->ilist[ii];
     int jnum = list->numneigh[i];
@@ -147,31 +168,19 @@ void PairGranHertzHistory::emit_results(int step, char *fname) {
   fclose(ofile);
 }
 
-void PairGranHertzHistory::emit_particle_details(int i, bool do_header=true) {
-  if (do_header) {
-    printf("particle %d\n", i);
-    printf("x\n%.16f\n%.16f\n%.16f\n",
-      atom->x[i][0], atom->x[i][1], atom->x[i][2]);
-    printf("v\n%.16f\n%.16f\n%.16f\n",
-      atom->v[i][0], atom->v[i][1], atom->v[i][2]);
-    printf("omega\n%.16f\n%.16f\n%.16f\n",
-      atom->omega[i][0], atom->omega[i][1], atom->omega[i][2]);
-    printf("radius\n%.16f\n", atom->radius[i]);
-    printf("rmass\n%.16f\n", atom->rmass[i]);
-  }
-
-  printf("torque\n%.16f\n%.16f\n%.16f\n",
-    atom->torque[i][0], atom->torque[i][1], atom->torque[i][2]);
-  printf("force\n%.16f\n%.16f\n%.16f\n",
-    atom->f[i][0], atom->f[i][1], atom->f[i][2]);
-}
-
 #include "simple_timer.h"
 static SimpleTimer *timers = new SimpleTimer[8];
 
 void PairGranHertzHistory::compute(int eflag, int vflag) {
   static int step = -1; step++;
   static int cpu_steps = 0;
+
+  if (step == 1000) {
+    emit("step1000.in");
+    PairGranHookeHistory::compute(eflag, vflag);
+    emit("step1000.out");
+    exit(0);
+  }
 
   int inum = list->inum;
   if (inum != 0) { cpu_steps++; }
@@ -183,8 +192,4 @@ void PairGranHertzHistory::compute(int eflag, int vflag) {
     printf("- [total time] %.3fms\n", timers[0].total_time());
     timers[0].reset();
   }
-
-  //if ((list->inum != 0) && (step < 100) || (step % 1000 == 0)) {
-  //  emit_results(step, "cpu.out");
-  //}
 }
